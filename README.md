@@ -120,4 +120,9 @@ Release naming follows the upstream style, adapted for this repository:
 
 See `CHANGELOG.md` and `RELEASE_NOTES_V3.0.0.md` for the initial V3 release payload.
 
+## Documentation
+
+- Step-by-step server guide: [INSTALLATION.md](INSTALLATION.md)
+- Upstream attribution and technical deltas: [UPSTREAM_DIFFERENCES.md](UPSTREAM_DIFFERENCES.md)
+
 
