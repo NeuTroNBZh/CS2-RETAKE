@@ -1,0 +1,41 @@
+﻿using CounterStrikeSharp.API.Modules.Entities.Constants;
+using CounterStrikeSharp.API.Modules.Utils;
+using CS2Retake.Allocators.Implementations.CommandAllocator.Utils;
+using CS2Retake.Utils;
+using CSZoneNet.Plugin.CS2BaseAllocator.Configs.Base;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace CS2Retake.Allocators.Implementations.CommandAllocator.Configs
+{
+    public class CommandAllocatorConfig : BaseAllocatorConfig
+    {
+        public bool EnableRoundTypePistolMenu { get; set; } = true;
+        public bool EnableRoundTypeMidMenu { get; set; } = true;
+        public bool EnableRoundTypeFullBuyMenu { get; set; } = true;
+
+        public DefuseKitModeEnum DefuseKitMode { get; set; } = DefuseKitModeEnum.All;
+        public int DefuseKitQuota { get; set; } = 1;
+        public double DefuseKitChance { get; set; } = 100.0d;
+        public double PistolDefuseKitChance { get; set; } = 34.44444d;
+        public bool PistolDefuseKitGuaranteeMinimum { get; set; } = true;
+
+        public bool EnableZeus { get; set; } = false;
+        public int ZeusChance { get; set; } = 20;
+
+        public DBType DatabaseType { get; set; } = DBType.SQLite;
+
+        public string ConnectionString { get; set; } = "Server=<server>;Port=<port-(dafault:5432)>;Database=<dbName>;Userid=<username>;Password=<password>";
+
+        public float HowToMessageDelayInMinutes { get; set; } = 3.5f;
+        public string HowToMessage { get; set; } = $"Customize your weapons by using !guns";
+
+        public CommandAllocatorConfig()
+        {
+            this.Version = 5;
+        }
+    }
+}
