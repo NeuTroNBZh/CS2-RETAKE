@@ -10,7 +10,7 @@
 [![CounterStrikeSharp](https://img.shields.io/badge/CounterStrikeSharp-1.0.228-orange?style=flat-square)](https://github.com/roflmuffin/CounterStrikeSharp)
 [![CS2](https://img.shields.io/badge/Game-CS2-yellow?style=flat-square)](https://www.counter-strike.net/)
 
-*Built on the solid foundation of [LordFetznschaedl/CS2Retake](https://github.com/LordFetznschaedl/CS2Retake) — extended with a full weapon selection system, native buy menu integration, AWP restrictions, InstaDefuse fusion, and more.*
+*Built on the solid foundation of [LordFetznschaedl/CS2Retake](https://github.com/LordFetznschaedl/CS2Retake) — extended with a full weapon selection system, AWP restrictions, InstaDefuse fusion, and more.*
 
 </div>
 
@@ -22,10 +22,9 @@
 | Feature | Description |
 |---------|-------------|
 | **`!guns` weapon menu** | In-game ChatMenu to choose your weapon per team and round type |
-| **Native buy menu integration** | Use the CS2 native buy menu to select weapons — no instant give, purely declarative |
 | **Persistent weapon choices** | Selections saved per player × team × round type via SQLite or PostgreSQL, surviving map changes and server restarts |
 | **3 round types** | Independent weapon pools for **Pistol**, **Mid**, and **Full Buy** rounds |
-| **AWP restrictions** | AWP only available with 5+ active players · max 1 AWP per team · configurable chance (default 30%) · toggle ON/OFF via buy menu or `!guns` |
+| **AWP restrictions** | AWP only available with 5+ active players · max 1 AWP per team · configurable chance (default 30%) · toggle ON/OFF via `!guns` |
 | **Helmet removal on pistol rounds** | Helmets are automatically stripped at the start of every pistol round (kevlar kept) |
 
 ### 💣 Retake Gameplay
@@ -120,7 +119,7 @@ addons/counterstrikesharp/configs/plugins/CS2Retake/
 ```
 
 ### Step 5 — Configure
-Edit the generated JSON files to your preference (see [Configuration](#️-configuration) below), then use `css_retake_reloadconfig` or restart the plugin to apply changes.
+Edit the generated JSON files to your preference (see [Configuration](#-configuration) below), then use `css_retake_reloadconfig` or restart the plugin to apply changes.
 
 ---
 
@@ -215,11 +214,6 @@ Each file controls which weapons are available for selection in the correspondin
 | Command | Permission | Description |
 |---------|-----------|-------------|
 | `css_retake_reloadconfig` | `@css/root` | Reload the plugin configuration without restarting |
-| `!retakespawn <index>` | `@cs2retake/admin` | Teleport to a spawn point by index |
-| `!retakeaddspawn <team> <site>` | `@cs2retake/admin` | Add a spawn point (team: `2`=T `3`=CT, site: `0`=A `1`=B) |
-| `!retakescramble` | `@cs2retake/admin` | Force team scramble next round |
-| `!retakewrite` | `@cs2retake/admin` | Save current map spawn data to disk |
-| `!retakeread` | `@cs2retake/admin` | Reload spawn data from disk |
 
 ---
 
@@ -259,19 +253,19 @@ To switch to **PostgreSQL**, set `DatabaseType` to `PostgreSql` and fill in the 
 
 ## 🔧 Troubleshooting
 
-**Plugin does not load**  
+**Plugin does not load**
 → Verify CounterStrikeSharp ≥ 1.0.228 is installed and the `CS2Retake.dll` is in the correct `plugins/CS2Retake/` directory.
 
-**Players spawn in wrong positions**  
+**Players spawn in wrong positions**
 → Check that the spawn JSON file for the current map exists in `spawns/`. If missing, players will use the game's default spawns.
 
-**Buy menu does not block weapon purchases**  
-→ Ensure no other plugin intercepts the `buy` command with higher priority. CS2Retake registers the hook in `HookMode.Pre`.
+**Weapon menu does not open**
+→ Make sure `!guns` (and aliases like `!gun`, `!weapon`) are not blocked by another plugin and that the player has chat command access.
 
-**AWP always unavailable**  
+**AWP always unavailable**
 → AWP requires **strictly more than 4 active players** (T + CT combined). With ≤ 4 players the AWP option is locked regardless of the toggle.
 
-**Weapon selection not persisted across maps**  
+**Weapon selection not persisted across maps**
 → Confirm the database file or PostgreSQL connection is accessible and `DatabaseType` matches your setup.
 
 Enable `"EnableDebug": true` in the main config for verbose console output to diagnose any issue.

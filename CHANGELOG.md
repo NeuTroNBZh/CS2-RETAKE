@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.0.1] — 2026-03-21
+
+### Changed
+- **Native buy menu integration removed** — weapon selection is now fully handled through `!guns` and its aliases.
+- **Documentation update** — README updated to reflect current behavior and remove native buy flow references.
+
+### Notes
+- AWP preference and weapon selection remain available through `!guns`.
+- Persistence model (SQLite / PostgreSQL) is unchanged.
+
+---
+
 ## [3.0.0] — 2026-03-21
 
 ### Added
@@ -44,5 +56,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.x] — Upstream
 
-For changes prior to v3.0.0, refer to the upstream repository:  
+For changes prior to v3.0.0, refer to the upstream repository:
 [github.com/LordFetznschaedl/CS2Retake](https://github.com/LordFetznschaedl/CS2Retake/blob/main/CHANGELOG.md)
