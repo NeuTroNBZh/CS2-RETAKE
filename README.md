@@ -1,128 +1,314 @@
-# CS2-RETAKE (V3)
+<div align="center">
 
-Professional CS2 Retake plugin built on CounterStrikeSharp, with integrated native buy interception, persistent weapon preferences, advanced AWP rules, configurable CT kit distribution, and integrated instant-defuse logic.
+# CS2 Retake V3
 
-This project is intended for international use and production servers.
+**A feature-rich CS2 retake plugin for CounterStrikeSharp**
 
-## Requirements
+[![Release](https://img.shields.io/github/v/release/NeuTroNBZh/CS2-RETAKE?style=flat-square&label=Release&color=brightgreen)](https://github.com/NeuTroNBZh/CS2-RETAKE/releases/latest)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square)](LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-8.0-purple?style=flat-square)](https://dotnet.microsoft.com/)
+[![CounterStrikeSharp](https://img.shields.io/badge/CounterStrikeSharp-1.0.228-orange?style=flat-square)](https://github.com/roflmuffin/CounterStrikeSharp)
+[![CS2](https://img.shields.io/badge/Game-CS2-yellow?style=flat-square)](https://www.counter-strike.net/)
 
-- CounterStrikeSharp API: minimum 228
-- Game mode: Casual or Competitive
-- .NET runtime compatible with CounterStrikeSharp plugins
+*Built on the solid foundation of [LordFetznschaedl/CS2Retake](https://github.com/LordFetznschaedl/CS2Retake) — extended with a full weapon selection system, native buy menu integration, AWP restrictions, InstaDefuse fusion, and more.*
 
-## Highlights (V3)
+</div>
 
-- Native CS2 buy menu interception (`buy` command listener) with selection-only behavior
-- Shared persistence between native buy flow and `!guns` flow
-- 6-slot weapon preference model per player (`T/CT x Pistol/Mid/FullBuy`)
-- AWP restrictions:
-  - disabled unless strictly more than 4 active players (`T + CT`)
-  - max 1 AWP winner per team per round
-  - toggle preference with unified `0/30` persistence model
-- Pistol round armor change: kevlar only (no helmet)
-- Smart CT defuse-kit distribution with configurable modes
-- Integrated InstaDefuse manager (no separate DLL required)
-- EN/FR runtime message language support
+---
 
-## Commands
+## ✨ Features
 
-| Command | Parameters | Description | Permission |
-|---|---|---|---|
-| `!guns` | - | Opens weapon preference menus (`css_guns` aliases supported) | - |
-| `!retakeinfo` | - | Prints plugin information | - |
-| `!retakespawn` | `<index>` | Teleports player to spawn index | `@cs2retake/admin` |
-| `!retakewrite` | - | Saves spawns for current map | `@cs2retake/admin` |
-| `!retakeread` | - | Loads spawns for current map | `@cs2retake/admin` |
-| `!retakescramble` | - | Flags team scramble | `@cs2retake/admin` |
-| `!retaketeleport` | `<x> <y> <z>` | Teleports player to coordinates | `@cs2retake/admin` |
-| `!retakeaddspawn` | `<team> <site>` | Adds a spawn (`2=T`, `3=CT`; `0=A`, `1=B`) | `@cs2retake/admin` |
+### 🔫 Weapon System
+| Feature | Description |
+|---------|-------------|
+| **`!guns` weapon menu** | In-game ChatMenu to choose your weapon per team and round type |
+| **Native buy menu integration** | Use the CS2 native buy menu to select weapons — no instant give, purely declarative |
+| **Persistent weapon choices** | Selections saved per player × team × round type via SQLite or PostgreSQL, surviving map changes and server restarts |
+| **3 round types** | Independent weapon pools for **Pistol**, **Mid**, and **Full Buy** rounds |
+| **AWP restrictions** | AWP only available with 5+ active players · max 1 AWP per team · configurable chance (default 30%) · toggle ON/OFF via buy menu or `!guns` |
+| **Helmet removal on pistol rounds** | Helmets are automatically stripped at the start of every pistol round (kevlar kept) |
 
-## Installation
+### 💣 Retake Gameplay
+| Feature | Description |
+|---------|-------------|
+| **Auto Plant** | Bomb is automatically planted at round start by a designated T player |
+| **Fast Plant** | Alternative instant plant mode |
+| **Spot Announcer** | Optional center text announcement of the bombsite |
+| **Spawn system** | Per-map JSON spawn files for CT and T positions on each bombsite |
+| **8 pre-configured maps** | de_dust2, de_mirage, de_inferno, de_ancient, de_anubis, de_nuke, de_overpass, de_vertigo |
 
-1. Download the release assets for your platform.
-2. Copy the plugin files into your CS2 dedicated server `csgo` directory.
-3. Ensure this DLL is loaded under CounterStrikeSharp plugin loading path.
-4. Start/restart the server once to generate default config files.
-5. Edit configs, then restart or hot-reload as needed.
+### 🛡️ CT Kit Distribution
+Three configurable modes for defuse kit assignment:
+- **All** — every CT receives a kit (default)
+- **Quota** — exactly N kits distributed per round
+- **Chance** — per-player probability-based distribution
 
-Typical config paths:
+Pistol round has its own dedicated probability setting with optional guaranteed minimum.
 
-- Base config: `addons/counterstrikesharp/configs/plugins/CS2Retake/CS2Retake.json`
-- Allocator config: `addons/counterstrikesharp/configs/plugins/CS2Retake/CommandAllocator/CommandAllocator.json`
+### ⚡ InstaDefuse (built-in)
+Fully integrated, no separate DLL required. Based on [B3none/cs2-instadefuse](https://github.com/B3none/cs2-instadefuse).
+- Instant defuse when no Terrorists are alive (configurable)
+- Blocked by HE grenade, Molotov, Inferno (configurable per type)
+- Configurable inferno proximity distance
+- Forced explosion if defuse time would be insufficient
+- Chat notifications (English / French)
 
-## Core Configuration
+### 👥 Team & Queue Management
+| Feature | Description |
+|---------|-------------|
+| **Player queue** | Automatic queue when server is full (`MaxPlayers` cap) |
+| **Team balancing** | Configurable T/CT ratio (default 45% T) |
+| **Auto scramble** | Teams scrambled after N consecutive CT or T wins |
+| **Round-win switch** | Winners rotate out to keep games fair |
 
-Base config (`CS2Retake.json`) includes:
+### ⚙️ Quality of Life
+- **No-drop fix** — weapon selection is declarative; no weapons hit the floor during selection
+- **Configurable round type sequences** — Pistol → Mid → FullBuy, fully customizable
+- **Zeus support** — optional random Zeus distribution
+- **Language support** — English & French chat messages
+- **Debug mode** — verbose server console logging
 
-- `PlantType`: `AutoPlant` or `FastPlant`
-- `RoundTypeMode`: `Sequence`, `Specific`, `Random`
-- `RoundTypeSequence`: weighted round flow (for sequence mode)
-- `RoundTypeSpecific`: fixed mode value
-- `Allocator`: allocator implementation selector
-- `MessageLanguage`: `English` or `French`
-- Integrated InstaDefuse toggles:
-  - `InstaDefuseEnabled`
-  - `InstaDefuseRequireNoTAlive`
-  - `InstaDefuseBlockOnHe`
-  - `InstaDefuseBlockOnMolotov`
-  - `InstaDefuseBlockOnInferno`
-  - `InstaDefuseInfernoDistance`
-  - `InstaDefuseForceExplodeIfNoTime`
-  - `InstaDefuseChatNotification`
+---
 
-Command allocator config includes:
+## 📋 Requirements
 
-- `DefuseKitMode`: `All`, `Quota`, `Chance`
-- `DefuseKitQuota`
-- `DefuseKitChance`
-- `PistolDefuseKitChance`
-- `PistolDefuseKitGuaranteeMinimum`
-- `EnableZeus` and `ZeusChance`
-- DB mode (`SQLite` or `PostgreSQL`)
+| Dependency | Version | Link |
+|-----------|---------|------|
+| **CounterStrikeSharp** | ≥ 1.0.228 | [github.com/roflmuffin/CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp/releases) |
+| **Metamod:Source** | latest dev | [sourcemm.net](https://www.sourcemm.net/downloads.php/?branch=master) |
+| **.NET Runtime** | 8.0 | Bundled with CounterStrikeSharp |
 
-## What Is Different vs Upstream Projects
+---
 
-### Compared to LordFetznschaedl/CS2Retake
+## 🚀 Installation
 
-- Added native CS2 buy interception and round-type aware selection persistence
-- Unified AWP toggle logic across `!guns` and native buy behavior
-- Added strict AWP eligibility logic (`>4` active players, one winner per team)
-- Improved pistol equipment behavior (no helmet in pistol rounds)
-- Added configurable smart CT defuse-kit distribution model
-- Added runtime-safe config refresh behavior on config parse
-- Added consistency hardening for synthetic `bomb_planted` event payload
+### Step 1 — Install dependencies
+Make sure **Metamod:Source** and **CounterStrikeSharp** are already installed on your server.
 
-### Compared to B3none/cs2-instadefuse
+### Step 2 — Download the plugin
+Go to the [**Releases**](https://github.com/NeuTroNBZh/CS2-RETAKE/releases/latest) page and download the latest `CS2Retake-v*.zip`.
 
-- Logic is fused into `InstaDefuseManager` inside this plugin
-- No secondary plugin DLL required
-- Behavior is scoped to active retake rounds outside warmup
-- Integrated with shared runtime config and plugin messaging
+### Step 3 — Upload to your server
+Extract the archive and copy the **entire contents** into your server's `game/csgo/` directory:
 
-## Credits and Upstream Authors
+```
+game/csgo/
+└── addons/
+    └── counterstrikesharp/
+        └── plugins/
+            └── CS2Retake/
+                ├── CS2Retake.dll
+                ├── spawns/
+                │   ├── de_dust2.json
+                │   ├── de_mirage.json
+                │   └── ... (all maps included)
+                └── data/
+                    └── CommandAllocator/  (auto-created by plugin)
+```
 
-This project builds on excellent open-source work from:
+### Step 4 — Start the server
+Start or restart your CS2 server. The plugin will automatically generate its configuration files in:
 
-- LordFetznschaedl: https://github.com/LordFetznschaedl/CS2Retake
-- B3none: https://github.com/B3none/cs2-instadefuse
+```
+addons/counterstrikesharp/configs/plugins/CS2Retake/
+├── CS2RetakeConfig.json          ← Main plugin config
+└── CommandAllocator/
+    ├── CommandAllocatorConfig.json
+    ├── FullBuyConfig.json
+    ├── MidConfig.json
+    └── PistolConfig.json
+```
 
-Additional inspiration:
+### Step 5 — Configure
+Edit the generated JSON files to your preference (see [Configuration](#️-configuration) below), then use `css_retake_reloadconfig` or restart the plugin to apply changes.
 
-- splewis: https://github.com/splewis/csgo-retakes
+---
 
-## Release Strategy (V3 series)
+## ⚙️ Configuration
 
-Release naming follows the upstream style, adapted for this repository:
+### Main Config — `CS2RetakeConfig.json`
 
-- Title format: `Release-3.x.x CS2-RETAKE`
-- Tag format: `v3.x.x`
-- First release of this branch: `v3.0.0`
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `PlantType` | enum | `AutoPlant` | `AutoPlant` or `FastPlant` |
+| `RoundTypeMode` | enum | `Sequence` | `Sequence`, `Random`, or `Specific` |
+| `RoundTypeSequence` | array | `[Pistol×3, Mid×3, FullBuy×∞]` | Sequence of round types with repetition counts (`-1` = infinite) |
+| `RoundTypeSpecific` | enum | `FullBuy` | Fixed round type when `RoundTypeMode` is `Specific` |
+| `Allocator` | enum | `Command` | Weapon allocator to use (currently `Command`) |
+| `SecondsUntilBombPlantedCheck` | float | `5.0` | Seconds after round start before checking bomb plant status |
+| `SpotAnnouncerEnabled` | bool | `false` | Show bombsite name in center text |
+| `EnableQueue` | bool | `true` | Enable player queue system |
+| `EnableScramble` | bool | `true` | Enable automatic team scramble |
+| `EnableSwitchOnRoundWin` | bool | `true` | Rotate winning team out after round |
+| `ScrambleAfterSubsequentTerroristRoundWins` | int | `5` | Consecutive T wins before scramble |
+| `MaxPlayers` | int | `9` | Maximum simultaneous retake players |
+| `TeamBalanceRatio` | float | `0.499` | Target ratio of T players (e.g. `0.45` = 45% T) |
+| `EnableThankYouMessage` | bool | `false` | Display thank-you message to players |
+| `MessageLanguage` | enum | `English` | Chat message language: `English` or `French` |
+| `EnableDebug` | bool | `false` | Verbose console logging |
 
-See `CHANGELOG.md` and `RELEASE_NOTES_V3.0.0.md` for the initial V3 release payload.
+#### InstaDefuse Sub-Config
 
-## Documentation
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `InstaDefuseEnabled` | bool | `true` | Enable the InstaDefuse feature |
+| `InstaDefuseRequireNoTAlive` | bool | `true` | Require 0 living Terrorists to trigger instant defuse |
+| `InstaDefuseBlockOnHe` | bool | `true` | Block instant defuse when a HE grenade was thrown near bomb |
+| `InstaDefuseBlockOnMolotov` | bool | `true` | Block when a Molotov was thrown near bomb |
+| `InstaDefuseBlockOnInferno` | bool | `true` | Block while an active Inferno is within range |
+| `InstaDefuseInfernoDistance` | float | `250.0` | Max distance (units) from bomb for Inferno to block defuse |
+| `InstaDefuseForceExplodeIfNoTime` | bool | `true` | Force explosion if remaining time < defuse duration |
+| `InstaDefuseChatNotification` | bool | `true` | Send chat message when instant defuse is triggered or blocked |
 
-- Step-by-step server guide: [INSTALLATION.md](INSTALLATION.md)
-- Upstream attribution and technical deltas: [UPSTREAM_DIFFERENCES.md](UPSTREAM_DIFFERENCES.md)
+---
 
+### CommandAllocator Config — `CommandAllocatorConfig.json`
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `EnableRoundTypePistolMenu` | bool | `true` | Enable `!guns` menu for Pistol rounds |
+| `EnableRoundTypeMidMenu` | bool | `true` | Enable `!guns` menu for Mid rounds |
+| `EnableRoundTypeFullBuyMenu` | bool | `true` | Enable `!guns` menu for Full Buy rounds |
+| `DefuseKitMode` | enum | `All` | Kit distribution: `All`, `Quota`, or `Chance` |
+| `DefuseKitQuota` | int | `1` | Number of kits when mode is `Quota` |
+| `DefuseKitChance` | double | `100.0` | Per-CT kit probability (%) when mode is `Chance` |
+| `PistolDefuseKitChance` | double | `34.44` | Per-CT kit probability (%) on pistol rounds |
+| `PistolDefuseKitGuaranteeMinimum` | bool | `true` | Guarantee at least 1 CT gets a kit on pistol rounds |
+| `EnableZeus` | bool | `false` | Randomly distribute Zeus tasers |
+| `ZeusChance` | int | `20` | Chance (%) each player receives a Zeus |
+| `DatabaseType` | enum | `SQLite` | Weapon persistence backend: `SQLite` or `PostgreSql` |
+| `ConnectionString` | string | *(template)* | PostgreSQL connection string (only used when `DatabaseType` is `PostgreSql`) |
+| `HowToMessageDelayInMinutes` | float | `3.5` | Minutes between periodic `!guns` reminder messages |
+| `HowToMessage` | string | `"Customize your weapons by using !guns"` | The reminder message text |
+
+---
+
+### Weapon Configs — `FullBuyConfig.json` / `MidConfig.json` / `PistolConfig.json`
+
+Each file controls which weapons are available for selection in the corresponding round type. Weapons can be restricted by team (`CT`, `T`, or both).
+
+**Full Buy — Primaries (CT):** M4A4, M4A1-S, FAMAS, AUG, MP9, SCAR-20, MAG-7  
+**Full Buy — Primaries (T):** AK-47, Galil AR, SG553, Mac-10, G3SG1, Sawed-Off  
+**Full Buy — Primaries (both):** MP7, MP5-SD, UMP-45, P90, PP-Bizon, SSG 08, Nova, XM1014, M249, Negev  
+**Full Buy — Secondaries:** Deagle, P250, CZ75-Auto, Dual Berettas + team-specific pistols  
+**Full Buy — AWP:** configurable chance per team (default 30%), max 1 per team, requires 5+ active players  
+
+**Mid — Primaries (CT):** MP9, FAMAS, AUG  
+**Mid — Primaries (T):** Mac-10, Galil AR, SG553  
+**Mid — Primaries (both):** P90, MP5-SD, UMP-45, PP-Bizon, MP7  
+
+**Pistol — Secondaries:** Deagle, P250, CZ75-Auto, Dual Berettas + team-specific pistols (no primary, no AWP)
+
+---
+
+## 🎮 Commands
+
+### Player Commands
+| Command | Description |
+|---------|-------------|
+| `!guns` | Open the weapon selection menu for your current team and round type |
+| `!gun` | Alias for `!guns` |
+| `!weapon` | Alias for `!guns` |
+| `!weapons` | Alias for `!guns` |
+
+### Admin Commands
+| Command | Permission | Description |
+|---------|-----------|-------------|
+| `css_retake_reloadconfig` | `@css/root` | Reload the plugin configuration without restarting |
+| `!retakespawn <index>` | `@cs2retake/admin` | Teleport to a spawn point by index |
+| `!retakeaddspawn <team> <site>` | `@cs2retake/admin` | Add a spawn point (team: `2`=T `3`=CT, site: `0`=A `1`=B) |
+| `!retakescramble` | `@cs2retake/admin` | Force team scramble next round |
+| `!retakewrite` | `@cs2retake/admin` | Save current map spawn data to disk |
+| `!retakeread` | `@cs2retake/admin` | Reload spawn data from disk |
+
+---
+
+## 🗺️ Map Spawns
+
+Spawn files are stored as JSON in the `spawns/` directory. The following maps ship with pre-configured spawns:
+
+| Map | File |
+|-----|------|
+| de_dust2 | `spawns/de_dust2.json` |
+| de_mirage | `spawns/de_mirage.json` |
+| de_inferno | `spawns/de_inferno.json` |
+| de_ancient | `spawns/de_ancient.json` |
+| de_anubis | `spawns/de_anubis.json` |
+| de_nuke | `spawns/de_nuke.json` |
+| de_overpass | `spawns/de_overpass.json` |
+| de_vertigo | `spawns/de_vertigo.json` |
+
+To add custom spawns for another map, create `spawns/<mapname>.json` following the same format.
+
+---
+
+## 🗄️ Database
+
+Weapon selections are persisted automatically. By default the plugin uses **SQLite** (no setup required — the database file is created at `plugins/CS2Retake/data/CommandAllocator/`).
+
+To switch to **PostgreSQL**, set `DatabaseType` to `PostgreSql` and fill in the `ConnectionString` field in `CommandAllocatorConfig.json`:
+
+```json
+"DatabaseType": "PostgreSql",
+"ConnectionString": "Server=localhost;Port=5432;Database=cs2retake;Userid=user;Password=pass"
+```
+
+> The plugin will fall back to in-memory cache if the database connection fails, so gameplay is never interrupted by a DB outage.
+
+---
+
+## 🔧 Troubleshooting
+
+**Plugin does not load**  
+→ Verify CounterStrikeSharp ≥ 1.0.228 is installed and the `CS2Retake.dll` is in the correct `plugins/CS2Retake/` directory.
+
+**Players spawn in wrong positions**  
+→ Check that the spawn JSON file for the current map exists in `spawns/`. If missing, players will use the game's default spawns.
+
+**Buy menu does not block weapon purchases**  
+→ Ensure no other plugin intercepts the `buy` command with higher priority. CS2Retake registers the hook in `HookMode.Pre`.
+
+**AWP always unavailable**  
+→ AWP requires **strictly more than 4 active players** (T + CT combined). With ≤ 4 players the AWP option is locked regardless of the toggle.
+
+**Weapon selection not persisted across maps**  
+→ Confirm the database file or PostgreSQL connection is accessible and `DatabaseType` matches your setup.
+
+Enable `"EnableDebug": true` in the main config for verbose console output to diagnose any issue.
+
+---
+
+## 🏗️ Building from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/NeuTroNBZh/CS2-RETAKE.git
+cd CS2-RETAKE
+
+# Build (Release)
+dotnet build CS2Retake/CS2Retake.csproj -c Release
+```
+
+Output artifacts are placed in `CS2Retake/bin/Release/net8.0/`.
+
+The build script (`BuildScripts/Sync-PluginArtifacts.ps1`) automatically assembles the release package under `plugin/` on Windows.
+
+---
+
+## 🙏 Credits & Acknowledgements
+
+| Project | Author | Role |
+|---------|--------|------|
+| [CS2Retake](https://github.com/LordFetznschaedl/CS2Retake) | [LordFetznschaedl](https://github.com/LordFetznschaedl) | **Base plugin** — core retake gameplay loop, spawn system, team management, allocator architecture |
+| [cs2-instadefuse](https://github.com/B3none/cs2-instadefuse) | [B3none](https://github.com/B3none) | **InstaDefuse logic** — integrated natively as `InstaDefuseManager` |
+| [CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp) | [roflmuffin](https://github.com/roflmuffin) | Plugin framework |
+| [CSZoneNet.Plugin.CS2BaseAllocator](https://github.com/LordFetznschaedl/CS2BaseAllocator) | [LordFetznschaedl](https://github.com/LordFetznschaedl) | Allocator base library |
+
+---
+
+## 📄 License
+
+This project is licensed under the **GNU General Public License v3.0** — see the [LICENSE](LICENSE) file for details.
+
+Original base plugin © [LordFetznschaedl](https://github.com/LordFetznschaedl) — GPL-3.0  
+InstaDefuse logic © [B3none](https://github.com/B3none) — MIT License (compatible with GPL-3.0)
