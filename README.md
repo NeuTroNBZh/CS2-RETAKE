@@ -9,6 +9,7 @@
 [![.NET](https://img.shields.io/badge/.NET-8.0-purple?style=flat-square)](https://dotnet.microsoft.com/)
 [![CounterStrikeSharp](https://img.shields.io/badge/CounterStrikeSharp-1.0.228-orange?style=flat-square)](https://github.com/roflmuffin/CounterStrikeSharp)
 [![CS2](https://img.shields.io/badge/Game-CS2-yellow?style=flat-square)](https://www.counter-strike.net/)
+[![SpawnEditor](https://img.shields.io/badge/Companion-SpawnEditor-blue?style=flat-square)](https://github.com/NeuTroNBZh/CS2-SpawnEditor)
 
 *Built on the solid foundation of [LordFetznschaedl/CS2Retake](https://github.com/LordFetznschaedl/CS2Retake) — extended with a full weapon selection system, AWP restrictions, InstaDefuse fusion, and more.*
 
@@ -214,6 +215,8 @@ Each file controls which weapons are available for selection in the correspondin
 | Command | Permission | Description |
 |---------|-----------|-------------|
 | `css_retake_reloadconfig` | `@css/root` | Reload the plugin configuration without restarting |
+| `css_retakeread` | `@cs2retake/admin` | Reload spawn file for the current map from disk (no restart needed) |
+| `css_retakewrite` | `@cs2retake/admin` | Write current in-memory spawns back to disk |
 
 ---
 
@@ -233,6 +236,8 @@ Spawn files are stored as JSON in the `spawns/` directory. The following maps sh
 | de_vertigo | `spawns/de_vertigo.json` |
 
 To add custom spawns for another map, create `spawns/<mapname>.json` following the same format.
+
+> **Tip:** Use [RetakeSpawnEditor](https://github.com/NeuTroNBZh/CS2-SpawnEditor) to add, edit and delete spawns directly in-game with visual CBeam markers. After saving, CS2Retake reloads the spawn file automatically via `css_retakeread` — no map restart required.
 
 ---
 
@@ -314,5 +319,3 @@ This project is licensed under the **GNU General Public License v3.0** — see t
 
 Original base plugin © [LordFetznschaedl](https://github.com/LordFetznschaedl) — GPL-3.0  
 InstaDefuse logic © [B3none](https://github.com/B3none) — MIT License (compatible with GPL-3.0)
-
-
