@@ -236,6 +236,14 @@ To add custom spawns for another map, create `spawns/<mapname>.json` following t
 
 ---
 
+## 🧩 Companion Plugins
+
+| Plugin | Description |
+|--------|-------------|
+| [**RetakeSpawnEditor**](https://github.com/NeuTroNBZh/CS2-SpawnEditor) | Visualize, add, edit and delete retake spawns in-game. CBeam pillar markers, nearest-spawn highlight, SimpleAdmin integration, instant reload via `css_retakeread`. |
+
+---
+
 ## 🗄️ Database
 
 Weapon selections are persisted automatically. By default the plugin uses **SQLite** (no setup required — the database file is created at `plugins/CS2Retake/data/CommandAllocator/`).
@@ -306,3 +314,5 @@ This project is licensed under the **GNU General Public License v3.0** — see t
 
 Original base plugin © [LordFetznschaedl](https://github.com/LordFetznschaedl) — GPL-3.0  
 InstaDefuse logic © [B3none](https://github.com/B3none) — MIT License (compatible with GPL-3.0)
+
+
