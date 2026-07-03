@@ -46,7 +46,7 @@ namespace CS2Retake.Managers
 
         public void AssignWeapons()
         {
-            Utilities.GetPlayers().FindAll(x => x.TeamNum == (int)CsTeam.Terrorist || x.TeamNum == (int)CsTeam.CounterTerrorist).ForEach(x => {
+            Utilities.GetPlayers().FindAll(x => PlayerUtils.IsPlayableHuman(x) && (x.TeamNum == (int)CsTeam.Terrorist || x.TeamNum == (int)CsTeam.CounterTerrorist)).ForEach(x => {
                 this.RemoveWeapons(x);
                 this.AssignWeapon(x);
                 });
@@ -233,6 +233,12 @@ namespace CS2Retake.Managers
 
             if (this._allocator is CommandAllocator commandAllocator)
             {
+                // Initialize CommandAllocator event handlers lazily on first buy command
+                if (!commandAllocator.IsInitialized)
+                {
+                    commandAllocator.Initialize(this.PluginInstance);
+                }
+
                 return commandAllocator.HandleBuyCommand(player, commandInfo);
             }
 

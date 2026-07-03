@@ -1,5 +1,5 @@
-﻿using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Modules.Entities;
 using CounterStrikeSharp.API.Modules.Utils;
 using CS2Retake.Configs;
@@ -474,26 +474,34 @@ namespace CS2Retake.Managers
         private List<CCSPlayerController> GetPlayersByState(PlayerStateEnum playerState)
         {
             var playerControllerList = new List<CCSPlayerController>();
+            var staleUserIds = new List<int>();
 
             var userIdList = this._playerStateDict.Where(x => x.Value == playerState).Select(x => x.Key).ToList();
 
             foreach (var userId in userIdList)
             {
                 var player = Utilities.GetPlayerFromUserid(userId);
-                if (player == null || !player.IsValid)
+                if (!PlayerUtils.IsPlayableHuman(player))
                 {
+                    staleUserIds.Add(userId);
                     continue;
                 }
 
-                playerControllerList.Add(player);
+                playerControllerList.Add(player!);
             }
+
+            staleUserIds.ForEach(staleUserId =>
+            {
+                this._playerStateDict.Remove(staleUserId);
+                this.RemoveFromQueue(staleUserId);
+            });
 
             return playerControllerList;
         }
 
         private int GetPlayersCountByState(PlayerStateEnum playerState)
         {
-            return this._playerStateDict.Where(x => x.Value == playerState).Count();
+            return this.GetPlayersByState(playerState).Count;
         }
 
         private (int ctRatio, int tRatio) GetPlayerRatio()
