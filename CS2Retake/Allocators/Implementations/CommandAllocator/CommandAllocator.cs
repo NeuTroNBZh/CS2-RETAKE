@@ -1,4 +1,5 @@
-﻿using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CS2Retake.Allocators.Implementations.CommandAllocator.Configs;
 using CS2Retake.Configs;
 using CS2Retake.Managers;
@@ -25,6 +26,12 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
 {
     public class CommandAllocator : BaseGrenadeAllocator, IAllocatorConfig<CommandAllocatorConfig>, IDisposable
     {
+        private static CommandAllocator? _instance = null;
+        private bool _attributeHandlersRegistered = false;
+
+        public static CommandAllocator? Instance => _instance;
+        public bool IsInitialized => _attributeHandlersRegistered;
+
         public CommandAllocatorConfig Config { get; set; } = new CommandAllocatorConfig();
 
         private ChanceEntity _awpChanceCT { get; set; } = null!;
@@ -38,10 +45,22 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
         private bool _awpRecipientsInitialized = false;
         private HashSet<ulong> _defuseKitRecipients = new HashSet<ulong>();
         private bool _defuseKitRecipientsInitialized = false;
+        private HashSet<uint> _unknownNativeBuyWeaponIds = new HashSet<uint>();
+        private HashSet<string> _loggedBlockedNativeBuySelections = new HashSet<string>();
+        private readonly Dictionary<ulong, (float expiresAt, RoundTypeEnum roundType, CsTeam team)> _pendingNativeBuySelections = new Dictionary<ulong, (float expiresAt, RoundTypeEnum roundType, CsTeam team)>();
 
         public CommandAllocator()
         {
+            _instance = this;
+        }
 
+        public void Initialize(IPlugin plugin)
+        {
+            if (!_attributeHandlersRegistered)
+            {
+                plugin.RegisterAllAttributes(this);
+                _attributeHandlersRegistered = true;
+            }
         }
 
         public override (string primaryWeapon, string secondaryWeapon, KevlarEnum kevlar, bool kit, bool zeus, List<GrenadeEnum> grenades) Allocate(CCSPlayerController player, RoundTypeEnum roundType = RoundTypeEnum.Undefined)
@@ -141,26 +160,93 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
                 return HookResult.Continue;
             }
 
-            if (commandInfo.ArgCount < 2)
+            MessageUtils.Log(
+                LogLevel.Information,
+                $"Buy command intercepted. Player='{player.PlayerName}', ArgString='{commandInfo.ArgString}'");
+
+            var buyTokens = this.ExtractBuyTokens(player, commandInfo);
+
+            if (this.ContainsAutoManagedItem(buyTokens))
             {
+                MessageUtils.PrintToPlayerOrServer(this.GetAutoManagedItemMessage(), player);
                 return HookResult.Handled;
             }
 
-            var buyToken = this.NormalizeBuyToken(commandInfo.GetArg(1));
-
-            if (string.IsNullOrWhiteSpace(buyToken))
+            if (this.HasNumericBuyPayload(commandInfo))
             {
+                // Numeric payloads (buy unused <id>) can be ambiguous in declarative mapping.
+                // Use exact capture mode to persist the weapon actually granted by the game.
+                MessageUtils.Log(
+                    LogLevel.Information,
+                    $"Native buy numeric payload fallback enabled. Player='{player.PlayerName}', Team='{player.Team}', RoundType='{RoundTypeManager.Instance.RoundType}', ArgString='{commandInfo.ArgString}', Tokens='{string.Join(",", buyTokens.OrderBy(token => token))}'");
+
+                this.RegisterPendingNativeBuySelection(player);
+                return HookResult.Continue;
+            }
+
+            // Fast path: resolve declaratively whenever we can (no native purchase side effects).
+            if (this.CanResolveNativeSelectionDeclaratively(player, buyTokens))
+            {
+                this.HandleNativeBuySelection(player, buyTokens, commandInfo);
                 return HookResult.Handled;
             }
 
-            this.HandleNativeBuySelection(player, buyToken);
+            // Known weapon but invalid for current team/round: block immediately.
+            if (this.IsKnownConfiguredWeaponSelection(buyTokens))
+            {
+                this.LogUnmatchedBuySelection(player, commandInfo, buyTokens);
+                MessageUtils.PrintToPlayerOrServer(this.GetUnavailableForRoundTypeMessage(), player);
+                return HookResult.Handled;
+            }
 
-            return HookResult.Handled;
+            // Fallback (Option 1): unresolved/ambiguous payload, capture exact weapon from item_pickup.
+            this.RegisterPendingNativeBuySelection(player);
+            return HookResult.Continue;
         }
 
-        private void HandleNativeBuySelection(CCSPlayerController player, string buyToken)
+        private bool CanResolveNativeSelectionDeclaratively(CCSPlayerController player, IReadOnlyCollection<string> buyTokens)
         {
-            if (this.IsAutoManagedItem(buyToken))
+            switch (RoundTypeManager.Instance.RoundType)
+            {
+                case RoundTypeEnum.Pistol:
+                    return this.FindMatchingWeapon(PistolMenu.Instance.Config.AvailableSecondaries, buyTokens, player.Team) != null;
+                case RoundTypeEnum.Mid:
+                    return this.FindMatchingWeapon(MidMenu.Instance.Config.AvailablePrimaries, buyTokens, player.Team) != null
+                        || this.FindMatchingWeapon(MidMenu.Instance.Config.AvailableSecondaries, buyTokens, player.Team) != null;
+                case RoundTypeEnum.FullBuy:
+                    return buyTokens.Contains(this.NormalizeBuyToken("weapon_awp"))
+                        || buyTokens.Contains("awp")
+                        || this.FindMatchingWeapon(FullBuyMenu.Instance.Config.AvailablePrimaries, buyTokens, player.Team) != null
+                        || this.FindMatchingWeapon(FullBuyMenu.Instance.Config.AvailableSecondaries, buyTokens, player.Team) != null;
+                default:
+                    return false;
+            }
+        }
+
+        private bool HasNumericBuyPayload(CommandInfo commandInfo)
+        {
+            for (var index = 1; index < commandInfo.ArgCount; index++)
+            {
+                if (uint.TryParse(this.NormalizeBuyToken(commandInfo.GetArg(index)), out _))
+                {
+                    return true;
+                }
+            }
+
+            foreach (var segment in commandInfo.ArgString.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (uint.TryParse(this.NormalizeBuyToken(segment), out _))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void HandleNativeBuySelection(CCSPlayerController player, IReadOnlyCollection<string> buyTokens, CommandInfo commandInfo)
+        {
+            if (this.ContainsAutoManagedItem(buyTokens))
             {
                 MessageUtils.PrintToPlayerOrServer(this.GetAutoManagedItemMessage(), player);
                 return;
@@ -169,13 +255,13 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
             switch (RoundTypeManager.Instance.RoundType)
             {
                 case RoundTypeEnum.Pistol:
-                    this.HandlePistolBuySelection(player, buyToken);
+                    this.HandlePistolBuySelection(player, buyTokens, commandInfo);
                     return;
                 case RoundTypeEnum.Mid:
-                    this.HandleMidBuySelection(player, buyToken);
+                    this.HandleMidBuySelection(player, buyTokens, commandInfo);
                     return;
                 case RoundTypeEnum.FullBuy:
-                    this.HandleFullBuySelection(player, buyToken);
+                    this.HandleFullBuySelection(player, buyTokens, commandInfo);
                     return;
                 default:
                     MessageUtils.PrintToPlayerOrServer(this.GetUnavailableForRoundTypeMessage(), player);
@@ -183,52 +269,64 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
             }
         }
 
-        private void HandlePistolBuySelection(CCSPlayerController player, string buyToken)
+        private void HandlePistolBuySelection(CCSPlayerController player, IReadOnlyCollection<string> buyTokens, CommandInfo commandInfo)
         {
-            var weapon = this.FindMatchingWeapon(PistolMenu.Instance.Config.AvailableSecondaries, buyToken, player.Team);
+            var weapon = this.FindMatchingWeapon(PistolMenu.Instance.Config.AvailableSecondaries, buyTokens, player.Team);
 
             if (weapon == null)
             {
+                this.LogUnmatchedBuySelection(player, commandInfo, buyTokens);
                 MessageUtils.PrintToPlayerOrServer(this.GetUnavailableForRoundTypeMessage(), player);
                 return;
             }
 
             CacheManager.Instance.AddOrUpdatePistolCache(player, weapon.WeaponString, player.Team);
-            DBManager.Instance.InsertOrUpdatePistolWeaponString(player.SteamID, weapon.WeaponString, (int)player.Team);
+            var dbPersisted = DBManager.Instance.InsertOrUpdatePistolWeaponString(player.SteamID, weapon.WeaponString, (int)player.Team);
+
+            MessageUtils.Log(
+                LogLevel.Information,
+                $"Native buy pistol selection persisted. Player='{player.PlayerName}', Team='{player.Team}', Weapon='{weapon.WeaponString}', DbPersisted='{dbPersisted}'");
 
             MessageUtils.PrintToPlayerOrServer(this.GetWeaponSelectedMessage(weapon.WeaponName, RoundTypeEnum.Pistol, player.Team), player);
         }
 
-        private void HandleMidBuySelection(CCSPlayerController player, string buyToken)
+        private void HandleMidBuySelection(CCSPlayerController player, IReadOnlyCollection<string> buyTokens, CommandInfo commandInfo)
         {
-            var primary = this.FindMatchingWeapon(MidMenu.Instance.Config.AvailablePrimaries, buyToken, player.Team);
+            var primary = this.FindMatchingWeapon(MidMenu.Instance.Config.AvailablePrimaries, buyTokens, player.Team);
 
             if (primary != null)
             {
                 CacheManager.Instance.AddOrUpdateMidPrimaryCache(player, primary.WeaponString, player.Team);
-                DBManager.Instance.InsertOrUpdateMidPrimaryWeaponString(player.SteamID, primary.WeaponString, (int)player.Team);
+                var dbPersisted = DBManager.Instance.InsertOrUpdateMidPrimaryWeaponString(player.SteamID, primary.WeaponString, (int)player.Team);
+                MessageUtils.Log(
+                    LogLevel.Information,
+                    $"Native buy mid primary persisted. Player='{player.PlayerName}', Team='{player.Team}', Weapon='{primary.WeaponString}', DbPersisted='{dbPersisted}'");
                 MessageUtils.PrintToPlayerOrServer(this.GetWeaponSelectedMessage(primary.WeaponName, RoundTypeEnum.Mid, player.Team), player);
                 return;
             }
 
-            var secondary = this.FindMatchingWeapon(MidMenu.Instance.Config.AvailableSecondaries, buyToken, player.Team);
+            var secondary = this.FindMatchingWeapon(MidMenu.Instance.Config.AvailableSecondaries, buyTokens, player.Team);
 
             if (secondary != null)
             {
                 CacheManager.Instance.AddOrUpdateMidSecondaryCache(player, secondary.WeaponString, player.Team);
-                DBManager.Instance.InsertOrUpdateMidSecondaryWeaponString(player.SteamID, secondary.WeaponString, (int)player.Team);
+                var dbPersisted = DBManager.Instance.InsertOrUpdateMidSecondaryWeaponString(player.SteamID, secondary.WeaponString, (int)player.Team);
+                MessageUtils.Log(
+                    LogLevel.Information,
+                    $"Native buy mid secondary persisted. Player='{player.PlayerName}', Team='{player.Team}', Weapon='{secondary.WeaponString}', DbPersisted='{dbPersisted}'");
                 MessageUtils.PrintToPlayerOrServer(this.GetWeaponSelectedMessage(secondary.WeaponName, RoundTypeEnum.Mid, player.Team), player);
                 return;
             }
 
+            this.LogUnmatchedBuySelection(player, commandInfo, buyTokens);
             MessageUtils.PrintToPlayerOrServer(this.GetUnavailableForRoundTypeMessage(), player);
         }
 
-        private void HandleFullBuySelection(CCSPlayerController player, string buyToken)
+        private void HandleFullBuySelection(CCSPlayerController player, IReadOnlyCollection<string> buyTokens, CommandInfo commandInfo)
         {
             var fullBuyConfig = FullBuyMenu.Instance.Config;
 
-            if (buyToken == this.NormalizeBuyToken("weapon_awp"))
+            if (buyTokens.Contains(this.NormalizeBuyToken("weapon_awp")) || buyTokens.Contains("awp"))
             {
                 if (!fullBuyConfig.EnableAWPChance)
                 {
@@ -240,26 +338,33 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
                 return;
             }
 
-            var primary = this.FindMatchingWeapon(fullBuyConfig.AvailablePrimaries, buyToken, player.Team);
+            var primary = this.FindMatchingWeapon(fullBuyConfig.AvailablePrimaries, buyTokens, player.Team);
 
             if (primary != null)
             {
                 CacheManager.Instance.AddOrUpdateFullBuyPrimaryCache(player, primary.WeaponString, player.Team);
-                DBManager.Instance.InsertOrUpdateFullBuyPrimaryWeaponString(player.SteamID, primary.WeaponString, (int)player.Team);
+                var dbPersisted = DBManager.Instance.InsertOrUpdateFullBuyPrimaryWeaponString(player.SteamID, primary.WeaponString, (int)player.Team);
+                MessageUtils.Log(
+                    LogLevel.Information,
+                    $"Native buy fullbuy primary persisted. Player='{player.PlayerName}', Team='{player.Team}', Weapon='{primary.WeaponString}', DbPersisted='{dbPersisted}'");
                 MessageUtils.PrintToPlayerOrServer(this.GetWeaponSelectedMessage(primary.WeaponName, RoundTypeEnum.FullBuy, player.Team), player);
                 return;
             }
 
-            var secondary = this.FindMatchingWeapon(fullBuyConfig.AvailableSecondaries, buyToken, player.Team);
+            var secondary = this.FindMatchingWeapon(fullBuyConfig.AvailableSecondaries, buyTokens, player.Team);
 
             if (secondary != null)
             {
                 CacheManager.Instance.AddOrUpdateFullBuySecondaryCache(player, secondary.WeaponString, player.Team);
-                DBManager.Instance.InsertOrUpdateFullBuySecondaryWeaponString(player.SteamID, secondary.WeaponString, (int)player.Team);
+                var dbPersisted = DBManager.Instance.InsertOrUpdateFullBuySecondaryWeaponString(player.SteamID, secondary.WeaponString, (int)player.Team);
+                MessageUtils.Log(
+                    LogLevel.Information,
+                    $"Native buy fullbuy secondary persisted. Player='{player.PlayerName}', Team='{player.Team}', Weapon='{secondary.WeaponString}', DbPersisted='{dbPersisted}'");
                 MessageUtils.PrintToPlayerOrServer(this.GetWeaponSelectedMessage(secondary.WeaponName, RoundTypeEnum.FullBuy, player.Team), player);
                 return;
             }
 
+            this.LogUnmatchedBuySelection(player, commandInfo, buyTokens);
             MessageUtils.PrintToPlayerOrServer(this.GetUnavailableForRoundTypeMessage(), player);
         }
 
@@ -276,17 +381,21 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
             var nextChance = currentChance > 0 ? 0 : enabledChance;
 
             CacheManager.Instance.AddOrUpdateFullBuyAWPChanceCache(player, nextChance, team);
-            DBManager.Instance.InsertOrUpdateFullBuyAWPChance(player.SteamID, nextChance, (int)team);
+            var dbPersisted = DBManager.Instance.InsertOrUpdateFullBuyAWPChance(player.SteamID, nextChance, (int)team);
+
+            MessageUtils.Log(
+                LogLevel.Information,
+                $"Native buy awp toggle persisted. Player='{player.PlayerName}', Team='{team}', NextChance='{nextChance}', DbPersisted='{dbPersisted}'");
 
             MessageUtils.PrintToPlayerOrServer(this.GetAwpToggleMessage(nextChance > 0, enabledChance), player);
         }
 
-        private WeaponEntity? FindMatchingWeapon(IEnumerable<WeaponEntity> weapons, string buyToken, CsTeam team)
+        private WeaponEntity? FindMatchingWeapon(IEnumerable<WeaponEntity> weapons, IReadOnlyCollection<string> buyTokens, CsTeam team)
         {
-            return weapons.FirstOrDefault(weapon => (weapon.Team == team || weapon.Team == CsTeam.None) && this.MatchesBuyToken(weapon, buyToken));
+            return weapons.FirstOrDefault(weapon => (weapon.Team == team || weapon.Team == CsTeam.None) && this.MatchesBuyToken(weapon, buyTokens));
         }
 
-        private bool MatchesBuyToken(WeaponEntity weapon, string buyToken)
+        private bool MatchesBuyToken(WeaponEntity weapon, IReadOnlyCollection<string> buyTokens)
         {
             var candidates = new HashSet<string>
             {
@@ -317,9 +426,280 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
                 case "cz75a":
                     candidates.Add("cz75");
                     break;
+                case "tec9":
+                    candidates.Add("tec");
+                    break;
+                case "elite":
+                    candidates.Add("dualies");
+                    candidates.Add("dualberettas");
+                    break;
+                case "fiveseven":
+                    candidates.Add("five7");
+                    break;
+                case "mac10":
+                    candidates.Add("mac10smg");
+                    candidates.Add("mac");
+                    break;
+                case "ump45":
+                    candidates.Add("ump");
+                    break;
             }
 
-            return candidates.Contains(buyToken);
+            return buyTokens.Any(candidates.Contains);
+        }
+
+        private HashSet<string> ExtractBuyTokens(CCSPlayerController player, CommandInfo commandInfo)
+        {
+            var tokens = new HashSet<string>();
+
+            for (var index = 1; index < commandInfo.ArgCount; index++)
+            {
+                this.AddBuyToken(tokens, player, commandInfo.GetArg(index));
+            }
+
+            foreach (var segment in commandInfo.ArgString.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                this.AddBuyToken(tokens, player, segment);
+            }
+
+            return tokens;
+        }
+
+        private void AddBuyToken(HashSet<string> tokens, CCSPlayerController player, string rawToken)
+        {
+            var normalizedToken = this.NormalizeBuyToken(rawToken);
+
+            if (string.IsNullOrWhiteSpace(normalizedToken) || normalizedToken == "buy")
+            {
+                return;
+            }
+
+            if (uint.TryParse(normalizedToken, out var weaponId))
+            {
+                var resolvedWeaponToken = this.ResolveNumericBuyToken(player, weaponId);
+
+                if (!string.IsNullOrWhiteSpace(resolvedWeaponToken))
+                {
+                    this.AddBuyToken(tokens, player, resolvedWeaponToken);
+                }
+                else if (this._unknownNativeBuyWeaponIds.Add(weaponId))
+                {
+                    MessageUtils.Log(
+                        LogLevel.Warning,
+                        $"Unknown native buy numeric token '{weaponId}' received from CS2 buy menu. If players cannot select this item, extend CommandAllocator.ResolveNumericBuyToken().");
+                }
+
+                return;
+            }
+
+            tokens.Add(normalizedToken);
+
+            if (normalizedToken.StartsWith("item"))
+            {
+                tokens.Add(normalizedToken[4..]);
+            }
+
+            switch (normalizedToken)
+            {
+                case "m4a1s":
+                case "m4a1silencer":
+                    tokens.Add("m4a1silencer");
+                    tokens.Add("m4a1s");
+                    break;
+                case "usp":
+                case "usps":
+                case "uspsilencer":
+                    tokens.Add("uspsilencer");
+                    tokens.Add("usps");
+                    break;
+                case "p2000":
+                case "hkp2000":
+                    tokens.Add("p2000");
+                    tokens.Add("hkp2000");
+                    break;
+                case "galil":
+                case "galilar":
+                    tokens.Add("galil");
+                    tokens.Add("galilar");
+                    break;
+                case "krieg":
+                case "sg553":
+                case "sg556":
+                    tokens.Add("sg553");
+                    tokens.Add("sg556");
+                    break;
+                case "mp5":
+                case "mp5sd":
+                    tokens.Add("mp5");
+                    tokens.Add("mp5sd");
+                    break;
+                case "cz75":
+                case "cz75a":
+                    tokens.Add("cz75");
+                    tokens.Add("cz75a");
+                    break;
+                case "r8":
+                case "revolver":
+                    tokens.Add("r8");
+                    tokens.Add("revolver");
+                    break;
+                case "tec":
+                case "tec9":
+                    tokens.Add("tec");
+                    tokens.Add("tec9");
+                    break;
+                case "scout":
+                case "ssg08":
+                    tokens.Add("scout");
+                    tokens.Add("ssg08");
+                    break;
+                case "dualies":
+                case "dualberettas":
+                case "elite":
+                    tokens.Add("dualies");
+                    tokens.Add("dualberettas");
+                    tokens.Add("elite");
+                    break;
+                case "five7":
+                case "fiveseven":
+                    tokens.Add("five7");
+                    tokens.Add("fiveseven");
+                    break;
+            }
+        }
+
+        private string? ResolveNumericBuyToken(CCSPlayerController player, uint selectionId)
+        {
+            var resolvedByLoadout = this.ResolveLoadoutSlotToken(player, selectionId);
+
+            if (!string.IsNullOrWhiteSpace(resolvedByLoadout))
+            {
+                return resolvedByLoadout;
+            }
+
+            return this.ResolveSelectionSlotToken(selectionId);
+        }
+
+        private string? ResolveLoadoutSlotToken(CCSPlayerController player, uint selectionId)
+        {
+            try
+            {
+                var inventoryServices = player.InventoryServices;
+
+                if (inventoryServices == null)
+                {
+                    return null;
+                }
+
+                foreach (var loadoutSlot in inventoryServices.ServerAuthoritativeWeaponSlots)
+                {
+                    if (loadoutSlot == null || loadoutSlot.UnSlot != selectionId)
+                    {
+                        continue;
+                    }
+
+                    return this.ResolveItemDefinitionToken(loadoutSlot.UnItemDefIdx)
+                        ?? this.ResolveSelectionSlotToken(loadoutSlot.UnItemDefIdx);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageUtils.LogDebug($"Native buy loadout resolution failed for player '{player.PlayerName}' and selectionId '{selectionId}': {ex.Message}");
+            }
+
+            return null;
+        }
+
+        private string? ResolveSelectionSlotToken(uint weaponId)
+        {
+            return weaponId switch
+            {
+                0 => "glock",
+                1 => "hkp2000",
+                2 => "cz75a",
+                3 => "elite",
+                4 => "deagle",
+                5 => "fiveseven",
+                6 => "p250",
+                7 => "revolver",
+                8 => "tec9",
+                9 => "usp_silencer",
+                10 => "ak47",
+                11 => "m4a1",
+                12 => "m4a1_silencer",
+                13 => "famas",
+                14 => "galilar",
+                15 => "aug",
+                16 => "sg556",
+                17 => "bizon",
+                18 => "mac10",
+                19 => "mp5sd",
+                20 => "mp7",
+                21 => "mp9",
+                22 => "p90",
+                23 => "ump45",
+                24 => "mag7",
+                25 => "nova",
+                26 => "sawedoff",
+                27 => "xm1014",
+                28 => "awp",
+                29 => "ssg08",
+                30 => "g3sg1",
+                31 => "scar20",
+                32 => "m249",
+                33 => "negev",
+                34 => "taser",
+                35 => "decoy",
+                36 => "flashbang",
+                37 => "hegrenade",
+                38 => "incgrenade",
+                39 => "molotov",
+                40 => "smokegrenade",
+                _ => null,
+            };
+        }
+
+        private string? ResolveItemDefinitionToken(uint itemDefinitionIndex)
+        {
+            return itemDefinitionIndex switch
+            {
+                1 => "deagle",
+                2 => "elite",
+                3 => "fiveseven",
+                4 => "glock",
+                7 => "ak47",
+                8 => "aug",
+                9 => "awp",
+                10 => "famas",
+                11 => "g3sg1",
+                13 => "galilar",
+                14 => "m249",
+                16 => "m4a1",
+                17 => "mac10",
+                19 => "p90",
+                23 => "mp5sd",
+                24 => "ump45",
+                25 => "xm1014",
+                26 => "bizon",
+                27 => "mag7",
+                28 => "negev",
+                29 => "sawedoff",
+                30 => "tec9",
+                31 => "taser",
+                32 => "hkp2000",
+                33 => "mp7",
+                34 => "mp9",
+                35 => "nova",
+                36 => "p250",
+                38 => "scar20",
+                39 => "sg556",
+                40 => "ssg08",
+                60 => "m4a1_silencer",
+                61 => "usp_silencer",
+                63 => "cz75a",
+                64 => "revolver",
+                _ => null,
+            };
         }
 
         private string NormalizeBuyToken(string rawToken)
@@ -334,16 +714,18 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
             return new string(rawToken.Where(char.IsLetterOrDigit).ToArray());
         }
 
-        private bool IsAutoManagedItem(string buyToken)
+        private bool ContainsAutoManagedItem(IReadOnlyCollection<string> buyTokens)
         {
-            return new HashSet<string>
+            var autoManagedItems = new HashSet<string>
             {
                 "vest",
                 "vesthelm",
                 "assaultsuit",
                 "kevlar",
+                "itemkevlar",
                 "helmet",
                 "defuser",
+                "itemdefuser",
                 "hegrenade",
                 "incgrenade",
                 "molotov",
@@ -351,7 +733,52 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
                 "smokegrenade",
                 "decoy",
                 "taser",
-            }.Contains(buyToken);
+            };
+
+            return buyTokens.Any(autoManagedItems.Contains);
+        }
+
+        private void LogUnmatchedBuySelection(CCSPlayerController player, CommandInfo commandInfo, IReadOnlyCollection<string> buyTokens)
+        {
+            var roundType = RoundTypeManager.Instance.RoundType;
+            var orderedTokens = string.Join(",", buyTokens.OrderBy(token => token));
+            var logKey = $"{GameRuleManager.Instance.TotalRoundsPlayed}:{roundType}:{player.SteamID}:{commandInfo.ArgString.Trim()}:{orderedTokens}";
+
+            if (!this._loggedBlockedNativeBuySelections.Add(logKey))
+            {
+                return;
+            }
+
+            MessageUtils.Log(
+                LogLevel.Information,
+                $"Native buy selection blocked. Player='{player.PlayerName}', Team='{player.Team}', RoundType='{roundType}', ArgString='{commandInfo.ArgString}', Tokens='{orderedTokens}'");
+
+            if (this.IsKnownConfiguredWeaponSelection(buyTokens))
+            {
+                MessageUtils.LogDebug(
+                    $"Blocked native buy selection outside allowed team/round. Player='{player.PlayerName}', Team='{player.Team}', RoundType='{roundType}', ArgString='{commandInfo.ArgString}', Tokens='{orderedTokens}'");
+                return;
+            }
+
+            MessageUtils.Log(
+                LogLevel.Information,
+                $"Native buy selection did not match any configured weapon. Player='{player.PlayerName}', Team='{player.Team}', RoundType='{roundType}', ArgString='{commandInfo.ArgString}', Tokens='{orderedTokens}'");
+        }
+
+        private bool IsKnownConfiguredWeaponSelection(IReadOnlyCollection<string> buyTokens)
+        {
+            if (buyTokens.Contains("awp"))
+            {
+                return true;
+            }
+
+            IEnumerable<WeaponEntity> weapons = PistolMenu.Instance.Config.AvailableSecondaries
+                .Concat(MidMenu.Instance.Config.AvailablePrimaries)
+                .Concat(MidMenu.Instance.Config.AvailableSecondaries)
+                .Concat(FullBuyMenu.Instance.Config.AvailablePrimaries)
+                .Concat(FullBuyMenu.Instance.Config.AvailableSecondaries);
+
+            return weapons.Any(weapon => this.MatchesBuyToken(weapon, buyTokens));
         }
 
         private bool ShouldReceiveAwp(CCSPlayerController player, int? awpChance)
@@ -599,10 +1026,12 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
             _ = MidMenu.Instance;
             _ = PistolMenu.Instance;
 
+            this.EnsureBaselineWeaponCoverage();
+
             this._awpChanceCT = fullBuyConfig.AWPChanceCT;
             this._awpChanceT = fullBuyConfig.AWPChanceT;
 
-            MessageUtils.Log(LogLevel.Warning, $"For some reason sometimes an exception happens with the sqlite stuff. It still works. So no worries needed.");
+            MessageUtils.Log(LogLevel.Information, "Initializing weapon preference persistence backend...");
 
             DBManager.Instance.DBType = Config.DatabaseType;
             DBManager.Instance.AllocatorConfigDirectoryPath = Config.AllocatorConfigDirectoryPath;
@@ -741,6 +1170,7 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
             }
 
             CacheManager.Instance.RemoveUserFromCache(player);
+            this._pendingNativeBuySelections.Remove(player.SteamID);
         }
 
         public override void ResetForNextRound(bool completeReset = true)
@@ -751,11 +1181,322 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
             this._awpRecipientsInitialized = false;
             this._defuseKitRecipients.Clear();
             this._defuseKitRecipientsInitialized = false;
+            this._loggedBlockedNativeBuySelections.Clear();
+            this._pendingNativeBuySelections.Clear();
         }
 
         private void PrintHowToMessage()
         {
             Server.PrintToChatAll($"[{ChatColors.Gold}CommandAllocator{ChatColors.White}] {this.Config.HowToMessage}");
+        }
+
+        [GameEventHandler]
+        public HookResult OnItemPickup(EventItemPickup @event, GameEventInfo info)
+        {
+            var player = @event.Userid;
+            if (player == null || !player.IsValid || player.Team != CsTeam.CounterTerrorist && player.Team != CsTeam.Terrorist)
+            {
+                return HookResult.Continue;
+            }
+
+            if (GameRuleManager.Instance.IsWarmup)
+            {
+                return HookResult.Continue;
+            }
+
+            if (!this.TryGetPendingNativeBuySelection(player, out var pendingSelection))
+            {
+                return HookResult.Continue;
+            }
+
+            var weaponName = @event.Item ?? "";
+            var normalizedWeapon = this.ResolveNormalizedPickupWeapon(@event);
+
+            if (string.IsNullOrWhiteSpace(normalizedWeapon) || normalizedWeapon == "knife")
+            {
+                return HookResult.Continue;
+            }
+
+            if (this.ContainsAutoManagedItem(new HashSet<string> { normalizedWeapon }))
+            {
+                this._pendingNativeBuySelections.Remove(player.SteamID);
+                this.TryRemovePickedWeapon(player, normalizedWeapon);
+                this.TryResetNativeBuyCash(player);
+                MessageUtils.PrintToPlayerOrServer(this.GetAutoManagedItemMessage(), player);
+                return HookResult.Continue;
+            }
+
+            this._pendingNativeBuySelections.Remove(player.SteamID);
+
+            MessageUtils.Log(
+                LogLevel.Information,
+                $"Item pickup detected. Player='{player.PlayerName}', SteamId='{player.SteamID}', Team='{player.Team}', RoundType='{pendingSelection.roundType}', Weapon='{weaponName}', Defindex='{@event.Defindex}'");
+
+            var persisted = this.PersistActualWeaponSelection(player, normalizedWeapon, pendingSelection.roundType);
+
+            // Keep selection-only behavior: do not keep the instantly-bought weapon equipped.
+            this.TryRemovePickedWeapon(player, normalizedWeapon);
+            this.TryResetNativeBuyCash(player);
+
+            if (!persisted)
+            {
+                MessageUtils.PrintToPlayerOrServer(this.GetUnavailableForRoundTypeMessage(), player);
+                MessageUtils.Log(
+                    LogLevel.Information,
+                    $"Native buy pickup ignored (not allowed for current round setup). Player='{player.PlayerName}', Team='{player.Team}', RoundType='{pendingSelection.roundType}', Weapon='{weaponName}'");
+            }
+
+            return HookResult.Continue;
+        }
+
+        private bool PersistActualWeaponSelection(CCSPlayerController player, string normalizedWeapon, RoundTypeEnum roundType)
+        {
+            if (string.IsNullOrWhiteSpace(normalizedWeapon))
+            {
+                return false;
+            }
+
+            switch (roundType)
+            {
+                case RoundTypeEnum.Pistol:
+                    return this.PersistPistolWeaponPickup(player, normalizedWeapon);
+                case RoundTypeEnum.Mid:
+                    return this.PersistMidWeaponPickup(player, normalizedWeapon);
+                case RoundTypeEnum.FullBuy:
+                    return this.PersistFullBuyWeaponPickup(player, normalizedWeapon);
+            }
+
+            return false;
+        }
+
+        private bool PersistPistolWeaponPickup(CCSPlayerController player, string normalizedWeapon)
+        {
+            var weapon = PistolMenu.Instance.Config.AvailableSecondaries
+                .FirstOrDefault(w => this.NormalizeBuyToken(w.WeaponString).Equals(normalizedWeapon, StringComparison.OrdinalIgnoreCase)
+                 && (w.Team == player.Team || w.Team == CsTeam.None));
+
+            if (weapon == null)
+            {
+                return false;
+            }
+
+            CacheManager.Instance.AddOrUpdatePistolCache(player, weapon.WeaponString, player.Team);
+            var dbPersisted = DBManager.Instance.InsertOrUpdatePistolWeaponString(player.SteamID, weapon.WeaponString, (int)player.Team);
+            MessageUtils.Log(
+                LogLevel.Information,
+                $"Item pickup pistol persisted. Player='{player.PlayerName}', Team='{player.Team}', Weapon='{weapon.WeaponString}', DbPersisted='{dbPersisted}'");
+
+            MessageUtils.PrintToPlayerOrServer(this.GetWeaponSelectedMessage(weapon.WeaponName, RoundTypeEnum.Pistol, player.Team), player);
+            return true;
+        }
+
+        private bool PersistMidWeaponPickup(CCSPlayerController player, string normalizedWeapon)
+        {
+            var primary = MidMenu.Instance.Config.AvailablePrimaries
+                .FirstOrDefault(w => this.NormalizeBuyToken(w.WeaponString).Equals(normalizedWeapon, StringComparison.OrdinalIgnoreCase)
+                 && (w.Team == player.Team || w.Team == CsTeam.None));
+
+            if (primary != null)
+            {
+                CacheManager.Instance.AddOrUpdateMidPrimaryCache(player, primary.WeaponString, player.Team);
+                var dbPersisted = DBManager.Instance.InsertOrUpdateMidPrimaryWeaponString(player.SteamID, primary.WeaponString, (int)player.Team);
+                MessageUtils.Log(
+                    LogLevel.Information,
+                    $"Item pickup mid primary persisted. Player='{player.PlayerName}', Team='{player.Team}', Weapon='{primary.WeaponString}', DbPersisted='{dbPersisted}'");
+                
+                MessageUtils.PrintToPlayerOrServer(this.GetWeaponSelectedMessage(primary.WeaponName, RoundTypeEnum.Mid, player.Team), player);
+                return true;
+            }
+
+            var secondary = MidMenu.Instance.Config.AvailableSecondaries
+                .FirstOrDefault(w => this.NormalizeBuyToken(w.WeaponString).Equals(normalizedWeapon, StringComparison.OrdinalIgnoreCase)
+                 && (w.Team == player.Team || w.Team == CsTeam.None));
+
+            if (secondary != null)
+            {
+                CacheManager.Instance.AddOrUpdateMidSecondaryCache(player, secondary.WeaponString, player.Team);
+                var dbPersisted = DBManager.Instance.InsertOrUpdateMidSecondaryWeaponString(player.SteamID, secondary.WeaponString, (int)player.Team);
+                MessageUtils.Log(
+                    LogLevel.Information,
+                    $"Item pickup mid secondary persisted. Player='{player.PlayerName}', Team='{player.Team}', Weapon='{secondary.WeaponString}', DbPersisted='{dbPersisted}'");
+                
+                MessageUtils.PrintToPlayerOrServer(this.GetWeaponSelectedMessage(secondary.WeaponName, RoundTypeEnum.Mid, player.Team), player);
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool PersistFullBuyWeaponPickup(CCSPlayerController player, string normalizedWeapon)
+        {
+            if (normalizedWeapon == "awp")
+            {
+                // AWP toggle handled by buy command (if needed)
+                return false;
+            }
+
+            var fullBuyConfig = FullBuyMenu.Instance.Config;
+
+            var primary = fullBuyConfig.AvailablePrimaries
+                .FirstOrDefault(w => this.NormalizeBuyToken(w.WeaponString).Equals(normalizedWeapon, StringComparison.OrdinalIgnoreCase)
+                 && (w.Team == player.Team || w.Team == CsTeam.None));
+
+            if (primary != null)
+            {
+                CacheManager.Instance.AddOrUpdateFullBuyPrimaryCache(player, primary.WeaponString, player.Team);
+                var dbPersisted = DBManager.Instance.InsertOrUpdateFullBuyPrimaryWeaponString(player.SteamID, primary.WeaponString, (int)player.Team);
+                MessageUtils.Log(
+                    LogLevel.Information,
+                    $"Item pickup fullbuy primary persisted. Player='{player.PlayerName}', Team='{player.Team}', Weapon='{primary.WeaponString}', DbPersisted='{dbPersisted}'");
+                
+                MessageUtils.PrintToPlayerOrServer(this.GetWeaponSelectedMessage(primary.WeaponName, RoundTypeEnum.FullBuy, player.Team), player);
+                return true;
+            }
+
+            var secondary = fullBuyConfig.AvailableSecondaries
+                .FirstOrDefault(w => this.NormalizeBuyToken(w.WeaponString).Equals(normalizedWeapon, StringComparison.OrdinalIgnoreCase)
+                 && (w.Team == player.Team || w.Team == CsTeam.None));
+
+            if (secondary != null)
+            {
+                CacheManager.Instance.AddOrUpdateFullBuySecondaryCache(player, secondary.WeaponString, player.Team);
+                var dbPersisted = DBManager.Instance.InsertOrUpdateFullBuySecondaryWeaponString(player.SteamID, secondary.WeaponString, (int)player.Team);
+                MessageUtils.Log(
+                    LogLevel.Information,
+                    $"Item pickup fullbuy secondary persisted. Player='{player.PlayerName}', Team='{player.Team}', Weapon='{secondary.WeaponString}', DbPersisted='{dbPersisted}'");
+                
+                MessageUtils.PrintToPlayerOrServer(this.GetWeaponSelectedMessage(secondary.WeaponName, RoundTypeEnum.FullBuy, player.Team), player);
+                return true;
+            }
+
+            return false;
+        }
+
+        private string ResolveNormalizedPickupWeapon(EventItemPickup pickupEvent)
+        {
+            if (pickupEvent.Defindex > 0 && pickupEvent.Defindex <= uint.MaxValue)
+            {
+                var resolvedByDefindex = this.ResolveItemDefinitionToken((uint)pickupEvent.Defindex)
+                    ?? this.ResolveSelectionSlotToken((uint)pickupEvent.Defindex);
+
+                if (!string.IsNullOrWhiteSpace(resolvedByDefindex))
+                {
+                    return this.NormalizeBuyToken(resolvedByDefindex);
+                }
+            }
+
+            return this.NormalizeBuyToken(pickupEvent.Item ?? string.Empty);
+        }
+
+        private void EnsureBaselineWeaponCoverage()
+        {
+            var pistolSecondaries = PistolMenu.Instance.Config.AvailableSecondaries;
+            this.EnsureWeaponExists(pistolSecondaries, "R8 Revolver", "weapon_revolver");
+
+            var midPrimaries = MidMenu.Instance.Config.AvailablePrimaries;
+            this.EnsureWeaponExists(midPrimaries, "Famas", "weapon_famas", CsTeam.CounterTerrorist);
+            this.EnsureWeaponExists(midPrimaries, "AUG", "weapon_aug", CsTeam.CounterTerrorist);
+            this.EnsureWeaponExists(midPrimaries, "Galil", "weapon_galilar", CsTeam.Terrorist);
+            this.EnsureWeaponExists(midPrimaries, "SG-553", "weapon_sg556", CsTeam.Terrorist);
+
+            var midSecondaries = MidMenu.Instance.Config.AvailableSecondaries;
+            this.EnsureWeaponExists(midSecondaries, "R8 Revolver", "weapon_revolver");
+
+            var fullBuyPrimaries = FullBuyMenu.Instance.Config.AvailablePrimaries;
+            this.EnsureWeaponExists(fullBuyPrimaries, "MP-9", "weapon_mp9", CsTeam.CounterTerrorist);
+            this.EnsureWeaponExists(fullBuyPrimaries, "Mac-10", "weapon_mac10", CsTeam.Terrorist);
+            this.EnsureWeaponExists(fullBuyPrimaries, "MP7", "weapon_mp7");
+            this.EnsureWeaponExists(fullBuyPrimaries, "MP5-SD", "weapon_mp5sd");
+            this.EnsureWeaponExists(fullBuyPrimaries, "UMP-45", "weapon_ump45");
+            this.EnsureWeaponExists(fullBuyPrimaries, "P90", "weapon_p90");
+            this.EnsureWeaponExists(fullBuyPrimaries, "PP-Bizon", "weapon_bizon");
+            this.EnsureWeaponExists(fullBuyPrimaries, "SSG 08", "weapon_ssg08");
+            this.EnsureWeaponExists(fullBuyPrimaries, "SCAR-20", "weapon_scar20", CsTeam.CounterTerrorist);
+            this.EnsureWeaponExists(fullBuyPrimaries, "G3SG1", "weapon_g3sg1", CsTeam.Terrorist);
+            this.EnsureWeaponExists(fullBuyPrimaries, "MAG-7", "weapon_mag7", CsTeam.CounterTerrorist);
+            this.EnsureWeaponExists(fullBuyPrimaries, "Sawed-Off", "weapon_sawedoff", CsTeam.Terrorist);
+            this.EnsureWeaponExists(fullBuyPrimaries, "Nova", "weapon_nova");
+            this.EnsureWeaponExists(fullBuyPrimaries, "XM1014", "weapon_xm1014");
+            this.EnsureWeaponExists(fullBuyPrimaries, "M249", "weapon_m249");
+            this.EnsureWeaponExists(fullBuyPrimaries, "Negev", "weapon_negev");
+
+            var fullBuySecondaries = FullBuyMenu.Instance.Config.AvailableSecondaries;
+            this.EnsureWeaponExists(fullBuySecondaries, "R8 Revolver", "weapon_revolver");
+        }
+
+        private void EnsureWeaponExists(List<WeaponEntity> weapons, string weaponName, string weaponString, CsTeam team = CsTeam.None)
+        {
+            var normalizedWeaponString = this.NormalizeBuyToken(weaponString);
+
+            if (weapons.Any(weapon => weapon.Team == team && this.NormalizeBuyToken(weapon.WeaponString).Equals(normalizedWeaponString, StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            weapons.Add(new WeaponEntity(weaponName, weaponString, team));
+        }
+
+        private void RegisterPendingNativeBuySelection(CCSPlayerController player)
+        {
+            this._pendingNativeBuySelections[player.SteamID] =
+            (
+                Server.CurrentTime + 2.0f,
+                RoundTypeManager.Instance.RoundType,
+                player.Team
+            );
+        }
+
+        private bool TryGetPendingNativeBuySelection(CCSPlayerController player, out (float expiresAt, RoundTypeEnum roundType, CsTeam team) pendingSelection)
+        {
+            if (!this._pendingNativeBuySelections.TryGetValue(player.SteamID, out pendingSelection))
+            {
+                return false;
+            }
+
+            if (pendingSelection.expiresAt < Server.CurrentTime || pendingSelection.team != player.Team)
+            {
+                this._pendingNativeBuySelections.Remove(player.SteamID);
+                return false;
+            }
+
+            return true;
+        }
+
+        private void TryResetNativeBuyCash(CCSPlayerController player)
+        {
+            if (player.InGameMoneyServices == null)
+            {
+                return;
+            }
+
+            player.InGameMoneyServices.Account = 16000;
+        }
+
+        private void TryRemovePickedWeapon(CCSPlayerController player, string normalizedWeapon)
+        {
+            if (player.PlayerPawn == null || !player.PlayerPawn.IsValid || player.PlayerPawn.Value == null || !player.PlayerPawn.Value.IsValid)
+            {
+                return;
+            }
+
+            var weaponService = player.PlayerPawn.Value.WeaponServices;
+
+            if (weaponService == null)
+            {
+                return;
+            }
+
+            var playerWeaponService = new CCSPlayer_WeaponServices(weaponService.Handle);
+
+            var matchingWeapons = playerWeaponService.MyWeapons
+                .Where(weapon => weapon != null && weapon.IsValid && weapon.Value != null && weapon.Value.IsValid)
+                .Where(weapon => this.NormalizeBuyToken(weapon.Value!.DesignerName).Equals(normalizedWeapon, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            foreach (var weapon in matchingWeapons)
+            {
+                weapon.Value?.Remove();
+            }
         }
 
         public void Dispose()
