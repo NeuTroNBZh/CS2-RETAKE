@@ -1,19 +1,21 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <Version>3.0.0</Version>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <Version>3.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CounterStrikeSharp.API" Version="1.*" />
-    <PackageReference Include="CSZoneNet.Plugin.CS2BaseAllocator" Version="1.0.13" />
-    <PackageReference Include="CSZoneNet.Plugin.Utils" Version="1.0.1" />
-    <PackageReference Include="Npgsql" Version="8.0.3" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.3" />
+    <PackageReference Include="CounterStrikeSharp.API" Version="1.0.370" />
+    <!-- CSZoneNet.Plugin.CS2BaseAllocator / CSZoneNet.Plugin.Utils : packages abandonnes, sources internalisees dans Vendor/CSZoneNet (2026-07-03) -->
+    <PackageReference Include="Npgsql" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <!-- Surclasse la dependance transitive SQLitePCLRaw 2.1.11 (CVE-2025-6965 / GHSA-2m69-gcr7-jv3q, SQLite < 3.50.2) -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
   </ItemGroup>
 
   <Target Name="SyncPluginArtifacts" AfterTargets="Build" Condition="'$(OS)' == 'Windows_NT'">

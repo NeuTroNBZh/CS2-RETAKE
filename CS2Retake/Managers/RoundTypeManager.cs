@@ -81,7 +81,7 @@ namespace CS2Retake.Managers
 
             MessageUtils.LogDebug($"TotalRoundsPlayed: {totalRoundsPlayed} - MaxRounds: {maxRounds}");
 
-            if(totalRoundsPlayed > maxRounds || totalRoundsPlayed > this._roundTypeList.Count)
+            if(totalRoundsPlayed > maxRounds || totalRoundsPlayed >= this._roundTypeList.Count)
             {
                 return;
             }

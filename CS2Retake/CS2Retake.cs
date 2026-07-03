@@ -1,4 +1,4 @@
-using CounterStrikeSharp.API;
+﻿using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
@@ -17,11 +17,11 @@ using System.Linq;
 
 namespace CS2Retake
 {
-    [MinimumApiVersion(228)]
+    [MinimumApiVersion(370)]
     public class CS2Retake : BasePlugin, IPluginConfig<CS2RetakeConfig>
     {
         public override string ModuleName => "CS2Retake";
-        public override string ModuleVersion => "3.0.0";
+        public override string ModuleVersion => "3.1.0";
         public override string ModuleAuthor => "NeuTroNBZh";
         public override string ModuleDescription => "Highly configurable and modular implementation Retake for CS2";
 
@@ -29,6 +29,7 @@ namespace CS2Retake
 
         public CS2RetakeConfig Config { get; set; } = new CS2RetakeConfig();
         private bool _scrambleAfterWarmupDone = false;
+        private int _tickCounter = 0;
 
         public void OnConfigParsed(CS2RetakeConfig config)
         {
@@ -67,13 +68,9 @@ namespace CS2Retake
 
             if (hotReload)
             {
-                var map = "de_dust2";
-                if(!string.IsNullOrWhiteSpace(Server.MapName))
-                {
-                    map = Server.MapName;
-                }
-
-                Server.ExecuteCommand($"map {map}");
+                //A full "map" reload on hot reload cut the ongoing game for everyone.
+                //A round restart is enough to re-enter a clean retake round with the reloaded plugin.
+                Server.ExecuteCommand("mp_restartgame 1");
             }
 
             this.RegisterListener<Listeners.OnMapStart>(mapName => this.OnMapStart(mapName));
@@ -286,7 +283,7 @@ namespace CS2Retake
                 return HookResult.Handled;
             }
 
-            if (!Enum.TryParse(commandInfo.GetArg(1), out CsTeam newTeam))
+            if (!Enum.TryParse(commandInfo.GetArg(1), out CsTeam newTeam) || !Enum.IsDefined(newTeam))
             {
                 this.Logger?.LogError("Parsing new team failed");
                 return HookResult.Handled;
@@ -589,6 +586,13 @@ namespace CS2Retake
 
         public void OnTick()
         {
+            //None of the checks below needs tick resolution: run them ~4x/second instead of 64x
+            //to avoid constant LINQ allocations and gamerules lookups on the hot path.
+            if (++this._tickCounter % 16 != 0)
+            {
+                return;
+            }
+
             if(GameRuleManager.Instance.IsWarmup && Server.CurrentTime >= GameRuleManager.Instance.WarmupEnd && !this._scrambleAfterWarmupDone)
             {
                 this._scrambleAfterWarmupDone = true;

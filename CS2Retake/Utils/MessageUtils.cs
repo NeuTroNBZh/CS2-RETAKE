@@ -1,4 +1,4 @@
-using CounterStrikeSharp.API;
+﻿using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
 using CS2Retake.Configs;
@@ -52,7 +52,16 @@ namespace CS2Retake.Utils
 
         public static void Log(LogLevel level, string? message, params object?[] args)
         {
-            Logger?.Log(level, message, args);
+            //Interpolated messages may contain player-controlled '{' '}' (e.g. buy ArgString) which
+            //ILogger would treat as a format template and throw on. Only template when args are provided.
+            if (args is { Length: > 0 })
+            {
+                Logger?.Log(level, message, args);
+            }
+            else
+            {
+                Logger?.Log(level, "{Message}", message ?? string.Empty);
+            }
         }
 
         public static void LogDebug(string? message, params object?[] args)
@@ -62,7 +71,14 @@ namespace CS2Retake.Utils
                 return;
             }
 
-            Logger?.LogInformation(message, args); 
+            if (args is { Length: > 0 })
+            {
+                Logger?.LogInformation(message, args);
+            }
+            else
+            {
+                Logger?.LogInformation("{Message}", message ?? string.Empty);
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-using CS2Retake.Allocators.Implementations.CommandAllocator.Interfaces;
+﻿using CS2Retake.Allocators.Implementations.CommandAllocator.Interfaces;
 using CS2Retake.Allocators.Implementations.CommandAllocator.Repository;
 using CS2Retake.Allocators.Implementations.CommandAllocator.Utils;
 using CS2Retake.Configs;

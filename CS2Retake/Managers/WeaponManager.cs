@@ -13,8 +13,6 @@ using CSZoneNet.Plugin.Utils.Enums;
 using CSZoneNet.Plugin.CS2BaseAllocator.Interfaces;
 using CS2Retake.Allocators.Factory;
 using CounterStrikeSharp.API.Modules.Entities;
-using CounterStrikeSharp.API.Modules.Commands;
-using CS2Retake.Allocators.Implementations.CommandAllocator;
 
 namespace CS2Retake.Managers
 {
@@ -136,7 +134,10 @@ namespace CS2Retake.Managers
                     break;
             }
 
-            player.ExecuteClientCommand($"slot3; slot2; slot1");
+            //One command per call: chaining with ';' inside a single client command is not reliable.
+            player.ExecuteClientCommand("slot3");
+            player.ExecuteClientCommand("slot2");
+            player.ExecuteClientCommand("slot1");
         }
 
         public void RemoveWeapons(CCSPlayerController player)
@@ -221,28 +222,6 @@ namespace CS2Retake.Managers
             }
 
             this._allocator.OnGunsCommand(player);
-        }
-
-        public HookResult OnBuyCommand(CCSPlayerController? player, CommandInfo commandInfo)
-        {
-            if (!this.HandleAllocatorCreation())
-            {
-                MessageUtils.Log(LogLevel.Error, $"Error while handling allocator creation for buy command");
-                return HookResult.Continue;
-            }
-
-            if (this._allocator is CommandAllocator commandAllocator)
-            {
-                // Initialize CommandAllocator event handlers lazily on first buy command
-                if (!commandAllocator.IsInitialized)
-                {
-                    commandAllocator.Initialize(this.PluginInstance);
-                }
-
-                return commandAllocator.HandleBuyCommand(player, commandInfo);
-            }
-
-            return HookResult.Continue;
         }
 
         public void OnPlayerConnected(CCSPlayerController? player)

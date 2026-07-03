@@ -68,7 +68,7 @@ namespace CS2Retake.Managers
                     this.GetGameRules();
                 }
 
-                return this.GameRules!.BombPlanted;
+                return this.GameRules?.BombPlanted ?? false;
             }
 
             set
@@ -78,7 +78,10 @@ namespace CS2Retake.Managers
                     this.GetGameRules();
                 }
 
-                this.GameRules!.BombPlanted = value;
+                if (this.GameRules != null)
+                {
+                    this.GameRules.BombPlanted = value;
+                }
             }
         }
 
@@ -91,7 +94,7 @@ namespace CS2Retake.Managers
                     this.GetGameRules();
                 }
 
-                return this.GameRules!.BombDefused;
+                return this.GameRules?.BombDefused ?? false;
             }
 
             set
@@ -101,7 +104,10 @@ namespace CS2Retake.Managers
                     this.GetGameRules();
                 }
 
-                this.GameRules!.BombDefused = value;
+                if (this.GameRules != null)
+                {
+                    this.GameRules.BombDefused = value;
+                }
             }
         }
 
@@ -114,7 +120,7 @@ namespace CS2Retake.Managers
                     this.GetGameRules();
                 }
 
-                return this.GameRules!.TotalRoundsPlayed;
+                return this.GameRules?.TotalRoundsPlayed ?? 0;
             }
         }
 
@@ -125,9 +131,9 @@ namespace CS2Retake.Managers
 
         private void GetGameRules()
         {
-            MessageUtils.Log(LogLevel.Information, $"GameRules is null. Fetching gamerule...");
-
-            RetakeManager.Instance.ConfigureForRetake();
+            //No ConfigureForRetake() here: this getter runs from OnTick while the proxy is missing,
+            //and executing retake.cfg every tick restarted warmup settings in a loop. OnMapStart handles the cfg.
+            MessageUtils.LogDebug($"GameRules is null. Fetching gamerule...");
 
             var gameRuleProxyList = this.GetGameRulesProxies();
 

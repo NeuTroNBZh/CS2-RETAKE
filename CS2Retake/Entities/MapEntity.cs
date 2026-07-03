@@ -1,4 +1,4 @@
-using CounterStrikeSharp.API.Modules.Utils;
+﻿using CounterStrikeSharp.API.Modules.Utils;
 using CS2Retake.Utils;
 using System;
 using System.Collections.Generic;

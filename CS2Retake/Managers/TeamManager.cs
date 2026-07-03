@@ -1,5 +1,5 @@
+﻿using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
-using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Modules.Entities;
 using CounterStrikeSharp.API.Modules.Utils;
 using CS2Retake.Configs;
@@ -210,6 +210,11 @@ namespace CS2Retake.Managers
 
         public void OnTick()
         {
+            if (this._playerStateDict.Count == 0)
+            {
+                return;
+            }
+
             if (GameRuleManager.Instance.IsWarmup)
             {
                 return;
@@ -365,7 +370,7 @@ namespace CS2Retake.Managers
             {
                 MessageUtils.LogDebug($"Switch to queue {userId}");
 
-                if(!GameRuleManager.Instance.IsWarmup && !PlayerUtils.AreMoreThenOrEqualPlayersConnected(2))
+                if(!GameRuleManager.Instance.IsWarmup)
                 {
                     MessageUtils.PrintToPlayerOrServer($"You have been placed into the queue! Please wait for the next round to start.", player);
                 }
@@ -384,7 +389,7 @@ namespace CS2Retake.Managers
             {
                 MessageUtils.LogDebug($"Switch to queue {userId} from queue spectator");
 
-                if (!GameRuleManager.Instance.IsWarmup || !PlayerUtils.AreMoreThenOrEqualPlayersConnected(2))
+                if (!GameRuleManager.Instance.IsWarmup)
                 {
                     MessageUtils.PrintToPlayerOrServer($"You have been placed into the queue! Please wait for the next round to start.", player);
                 }
@@ -508,8 +513,8 @@ namespace CS2Retake.Managers
         {
             (int ctRatio, int tRatio) playerRatio = (0,0);
 
-            var playingPlayers = this.GetQueuedPlayersCount();
-            var queuedPlayers = this.GetPlayingPlayersCount();
+            var playingPlayers = this.GetPlayingPlayersCount();
+            var queuedPlayers = this.GetQueuedPlayersCount();
 
             var totalPlayers = playingPlayers + queuedPlayers;
 

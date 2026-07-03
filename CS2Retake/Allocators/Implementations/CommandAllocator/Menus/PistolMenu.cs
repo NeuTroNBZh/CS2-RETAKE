@@ -77,14 +77,22 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Menus
         private static void OnSelectSecondary(CCSPlayerController player, ChatMenuOption chatMenuOption)
         {
             var menuText = chatMenuOption.Text?.Split('_')?.LastOrDefault() ?? string.Empty;
-            var weaponString = _config.AvailableSecondaries.FirstOrDefault(x => x.WeaponName.Equals(menuText))?.WeaponString;
+
+            //The team comes from the menu label ("CT_..."/"T_..."), NOT from the weapon string:
+            //GetTeam("weapon_xxx") resolved to CsTeam.None and the selection was persisted with Team=0.
+            var team = GetTeam(chatMenuOption.Text ?? string.Empty);
+
+            if (team == CsTeam.None)
+            {
+                return;
+            }
+
+            var weaponString = _config.AvailableSecondaries.FirstOrDefault(x => x.WeaponName.Equals(menuText) && (x.Team == team || x.Team == CsTeam.None))?.WeaponString;
 
             if (string.IsNullOrWhiteSpace(weaponString))
             {
                 return;
             }
-
-            var team = GetTeam(weaponString);
 
             MessageUtils.PrintToPlayerOrServer($"You have now selected {ChatColors.Green}{menuText}{ChatColors.White} as your pistol for {ChatColors.Green}Pistol{ChatColors.White} rounds!", player);
 

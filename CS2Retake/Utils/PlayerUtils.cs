@@ -1,8 +1,9 @@
-using CounterStrikeSharp.API;
+﻿using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,7 +12,7 @@ namespace CS2Retake.Utils
 {
     public static class PlayerUtils
     {
-        public static bool IsPlayableHuman(CCSPlayerController? player)
+        public static bool IsPlayableHuman([NotNullWhen(true)] CCSPlayerController? player)
         {
             return player != null
                 && player.IsValid
@@ -42,7 +43,7 @@ namespace CS2Retake.Utils
 
         public static List<CCSPlayerController> GetValidPlayerControllers() => Utilities.GetPlayers().Where(IsPlayableHuman).ToList();
 
-        public static bool AreMoreThenPlayersConnected(int playerCount) => GetValidPlayerControllers().Count() >= playerCount;
+        public static bool AreMoreThenPlayersConnected(int playerCount) => GetValidPlayerControllers().Count() > playerCount;
 
         public static bool AreMoreThenOrEqualPlayersConnected(int playerCount) => GetValidPlayerControllers().Count() >= playerCount;
 

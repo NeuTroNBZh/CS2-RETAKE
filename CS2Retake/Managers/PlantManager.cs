@@ -156,6 +156,7 @@ namespace CS2Retake.Managers
                 return;
             }
 
+            this.HasBombBeenPlantedTimer?.Kill();
             this.HasBombBeenPlantedTimer = new CounterStrikeSharp.API.Modules.Timers.Timer(RuntimeConfig.SecondsUntilBombPlantedCheck, this.HasBombBeenPlantedCallback);
         }
 

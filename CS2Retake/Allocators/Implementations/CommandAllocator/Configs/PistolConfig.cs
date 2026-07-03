@@ -1,4 +1,4 @@
-using CounterStrikeSharp.API.Modules.Utils;
+﻿using CounterStrikeSharp.API.Modules.Utils;
 using CS2Retake.Allocators.Implementations.CommandAllocator.Entities;
 using CSZoneNet.Plugin.CS2BaseAllocator.Configs.Base;
 using System;

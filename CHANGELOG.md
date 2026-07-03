@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.1.0] — 2026-07-03
+
+### ⚠️ Breaking / Requirements
+- **Requires CounterStrikeSharp v1.0.369 or newer** (the .NET 10 runtime line). Servers still running a .NET 8 CounterStrikeSharp build will not load this version.
+- Target framework migrated `net8.0` → `net10.0`; `CounterStrikeSharp.API` pinned to `1.0.370` (`MinimumApiVersion(370)`).
+
+### Fixed
+- **Weapon preferences could load the wrong team's choice after reconnect** — SQL JOINs on `UserId` only (missing `Team` condition) in both SQLite and PostgreSQL repositories; queries rewritten per-table with proper team filtering.
+- **`!guns` Mid primary and Pistol selections were persisted with `Team=0`** (team was parsed from `weapon_xxx` instead of the menu label) and therefore lost on reconnect. Players may need to re-select their Mid/Pistol preference once.
+- Crash (`ArgumentOutOfRangeException`) at the end of a round-type sequence without a `-1` entry.
+- `retake.cfg` could be re-executed every tick during map start (gamerules fetch inside `OnTick`); possible `NullReferenceException` on missing gamerules proxy.
+- `FormatException` in logging when player-controlled text contained `{`/`}` (e.g. buy command arguments).
+- Duplicate `!guns` hint timers after config hot reload; plugin hot reload no longer reloads the whole map (uses `mp_restartgame 1`).
+- Unclosed database readers leaking handles on long-running servers.
+
+### Changed
+- **Dead native-buy code removed** (~600 lines: buy interception, `item_pickup` capture, numeric payload resolvers). Weapon selection is `!guns` only; `retake.cfg` now sets `mp_buytime 0` and `mp_buy_anywhere 0` so the client buy menu no longer opens.
+- Database schema hardened: legacy duplicate rows deduplicated, `UNIQUE(UserId, Team)` index added, `INSERT ... ON CONFLICT DO UPDATE` upserts; one pooled connection per operation (thread-safe).
+- Player preference loading at connect now runs off the game thread (no more server hitch with a remote PostgreSQL).
+- `OnTick` work throttled to ~4 checks/second instead of 64.
+- Dependencies: `Npgsql 10.0.3`, `Microsoft.Data.Sqlite 10.0.9`, plus a direct `SQLitePCLRaw.bundle_e_sqlite3 3.0.3` reference fixing CVE-2025-6965 (bundled SQLite < 3.50.2).
+- **Abandoned `CSZoneNet.Plugin.*` NuGet packages internalized** under `CS2Retake/Vendor/CSZoneNet/` (sources from the original GitHub repos, public API verified identical by reflection). The `CSZoneNet.*.dll` files are no longer shipped — delete leftovers when updating an existing server install.
+
+---
+
 ## [3.0.1] — 2026-03-21
 
 ### Changed

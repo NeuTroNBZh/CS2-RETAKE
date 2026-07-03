@@ -1,4 +1,4 @@
-using CounterStrikeSharp.API.Core;
+﻿using CounterStrikeSharp.API.Core;
 using CS2Retake.Entities;
 using CS2Retake.Utils;
 using System;

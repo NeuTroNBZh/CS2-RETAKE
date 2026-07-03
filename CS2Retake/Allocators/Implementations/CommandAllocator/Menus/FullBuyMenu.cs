@@ -112,14 +112,19 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Menus
         private static void OnSelectPrimary(CCSPlayerController player, ChatMenuOption chatMenuOption)
         {
             var menuText = chatMenuOption.Text?.Split('_')?.LastOrDefault() ?? string.Empty;
-            var weaponString = _config.AvailablePrimaries.FirstOrDefault(x => x.WeaponName.Equals(menuText))?.WeaponString;
+            var team = GetTeam(chatMenuOption.Text ?? string.Empty);
+
+            if (team == CsTeam.None)
+            {
+                return;
+            }
+
+            var weaponString = _config.AvailablePrimaries.FirstOrDefault(x => x.WeaponName.Equals(menuText) && (x.Team == team || x.Team == CsTeam.None))?.WeaponString;
 
             if (string.IsNullOrWhiteSpace(weaponString))
             {
                 return;
             }
-
-            var team = GetTeam(chatMenuOption.Text ?? string.Empty);
 
             MessageUtils.PrintToPlayerOrServer($"You have now selected {ChatColors.Green}{menuText}{ChatColors.White} as your primary for {ChatColors.Green}FullBuy{ChatColors.White} rounds!", player);
 
@@ -132,14 +137,19 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Menus
         private static void OnSelectSecondary(CCSPlayerController player, ChatMenuOption chatMenuOption)
         {
             var menuText = chatMenuOption.Text?.Split('_')?.LastOrDefault() ?? string.Empty;
-            var weaponString = _config.AvailableSecondaries.FirstOrDefault(x => x.WeaponName.Equals(menuText))?.WeaponString;
-            
-            if (string.IsNullOrWhiteSpace(weaponString))
+            var team = GetTeam(chatMenuOption.Text ?? string.Empty);
+
+            if (team == CsTeam.None)
             {
                 return;
             }
 
-            var team = GetTeam(chatMenuOption.Text ?? string.Empty);
+            var weaponString = _config.AvailableSecondaries.FirstOrDefault(x => x.WeaponName.Equals(menuText) && (x.Team == team || x.Team == CsTeam.None))?.WeaponString;
+
+            if (string.IsNullOrWhiteSpace(weaponString))
+            {
+                return;
+            }
 
             MessageUtils.PrintToPlayerOrServer($"You have now selected {ChatColors.Green}{menuText}{ChatColors.White} as your secondary for {ChatColors.Green}FullBuy{ChatColors.White} rounds!", player);
 
