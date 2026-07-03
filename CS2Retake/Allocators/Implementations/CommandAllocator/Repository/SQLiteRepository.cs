@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using CS2Retake.Utils;
 using CS2Retake.Allocators.Implementations.CommandAllocator.Interfaces;
 
@@ -11,11 +12,20 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Repository
 {
     public class SQLiteRepository : IDisposable, IRetakeRepository
     {
-        private SQLiteConnection _connection;
+        private SqliteConnection _connection;
+        private readonly string _databasePath;
 
         public SQLiteRepository(string path)
         {
-            this._connection = new SQLiteConnection($"Data Source={path}/cs2retake.db;Version=3;");
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                throw new InvalidOperationException("SQLite storage directory is empty.");
+            }
+
+            Directory.CreateDirectory(path);
+
+            this._databasePath = Path.Join(path, "cs2retake.db");
+            this._connection = new SqliteConnection($"Data Source={this._databasePath}");
             this.Init();
         }
 
@@ -27,13 +37,13 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Repository
             }
             catch (Exception ex)
             {
-                MessageUtils.Log(Microsoft.Extensions.Logging.LogLevel.Error, $"Error while creating a connection to the cs2retake.db - Message: {ex.Message}");
+                throw new InvalidOperationException($"Error while opening SQLite database '{this._databasePath}'. {ex.Message}", ex);
             }
         }
 
         public void Init()
         {
-            SQLiteCommand? cmd = null;
+            SqliteCommand? cmd = null;
 
             try
             {
@@ -44,29 +54,29 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Repository
 
                 cmd = this._connection.CreateCommand();
 
-                cmd.CommandText = $"CREATE TABLE IF NOT EXISTS FullBuyPrimary (UserId UNSIGNED BIG INT, WeaponString VARCHAR(255), Team INT)";
+                cmd.CommandText = $"CREATE TABLE IF NOT EXISTS FullBuyPrimary (UserId INTEGER, WeaponString TEXT, Team INT)";
                 cmd.ExecuteNonQuery();
 
-                cmd.CommandText = $"CREATE TABLE IF NOT EXISTS FullBuySecondary (UserId UNSIGNED BIG INT, WeaponString VARCHAR(255), Team INT)";
+                cmd.CommandText = $"CREATE TABLE IF NOT EXISTS FullBuySecondary (UserId INTEGER, WeaponString TEXT, Team INT)";
                 cmd.ExecuteNonQuery();
 
-                cmd.CommandText = $"CREATE TABLE IF NOT EXISTS FullBuyAWPChance (UserId UNSIGNED BIG INT, AWPChance INT, Team INT)";
+                cmd.CommandText = $"CREATE TABLE IF NOT EXISTS FullBuyAWPChance (UserId INTEGER, AWPChance INT, Team INT)";
                 cmd.ExecuteNonQuery();
 
-                cmd.CommandText = $"CREATE TABLE IF NOT EXISTS MidPrimary (UserId UNSIGNED BIG INT, WeaponString VARCHAR(255), Team INT)";
+                cmd.CommandText = $"CREATE TABLE IF NOT EXISTS MidPrimary (UserId INTEGER, WeaponString TEXT, Team INT)";
                 cmd.ExecuteNonQuery();
 
-                cmd.CommandText = $"CREATE TABLE IF NOT EXISTS MidSecondary (UserId UNSIGNED BIG INT, WeaponString VARCHAR(255), Team INT)";
+                cmd.CommandText = $"CREATE TABLE IF NOT EXISTS MidSecondary (UserId INTEGER, WeaponString TEXT, Team INT)";
                 cmd.ExecuteNonQuery();
 
-                cmd.CommandText = $"CREATE TABLE IF NOT EXISTS Pistol (UserId UNSIGNED BIG INT, WeaponString VARCHAR(255), Team INT)";
+                cmd.CommandText = $"CREATE TABLE IF NOT EXISTS Pistol (UserId INTEGER, WeaponString TEXT, Team INT)";
                 cmd.ExecuteNonQuery();
 
                 cmd.Dispose();
             }
             catch (Exception ex)
             {
-                MessageUtils.Log(Microsoft.Extensions.Logging.LogLevel.Error, ex.ToString());
+                throw new InvalidOperationException($"Failed to initialize SQLite database '{this._databasePath}'.", ex);
             }
             finally
             {
@@ -87,7 +97,7 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Repository
 
         public bool InsertOrUpdateFullBuyPrimaryWeaponString(ulong userId, string weaponString, int team)
         {
-            SQLiteCommand? cmd = null;
+            SqliteCommand? cmd = null;
 
             try
             {
@@ -150,7 +160,7 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Repository
 
         public bool InsertOrUpdateFullBuySecondaryWeaponString(ulong userId, string weaponString, int team)
         {
-            SQLiteCommand? cmd = null;
+            SqliteCommand? cmd = null;
 
             try
             {
@@ -212,7 +222,7 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Repository
 
         public bool InsertOrUpdateFullBuyAWPChance(ulong userId, int chance, int team)
         {
-            SQLiteCommand? cmd = null;
+            SqliteCommand? cmd = null;
 
             try
             {
@@ -274,7 +284,7 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Repository
 
         public bool InsertOrUpdateMidPrimaryWeaponString(ulong userId, string weaponString, int team)
         {
-            SQLiteCommand? cmd = null;
+            SqliteCommand? cmd = null;
 
             try
             {
@@ -336,7 +346,7 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Repository
 
         public bool InsertOrUpdateMidSecondaryWeaponString(ulong userId, string weaponString, int team)
         {
-            SQLiteCommand? cmd = null;
+            SqliteCommand? cmd = null;
 
             try
             {
@@ -398,7 +408,7 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Repository
 
         public bool InsertOrUpdatePistolWeaponString(ulong userId, string weaponString, int team)
         {
-            SQLiteCommand? cmd = null;
+            SqliteCommand? cmd = null;
 
             try
             {
@@ -463,7 +473,7 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Repository
         {
             (string? primaryWeapon, string? secondaryWeapon, int? awpChance) returnValue = (null, null, null);
 
-            SQLiteCommand? cmd = null;
+            SqliteCommand? cmd = null;
 
             try
             {
@@ -512,7 +522,7 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Repository
         public (string? primaryWeapon, string? secondaryWeapon, int? awpChance) GetMidWeapons(ulong userId, int team)
         {
             (string? primaryWeapon, string? secondaryWeapon, int? awpChance) returnValue = (null, null, 0);
-            SQLiteCommand? cmd = null;
+            SqliteCommand? cmd = null;
 
             try
             {
@@ -560,7 +570,7 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Repository
         public (string? primaryWeapon, string? secondaryWeapon, int? awpChance) GetPistolWeapons(ulong userId, int team)
         {
             (string? primaryWeapon, string? secondaryWeapon, int? awpChance) returnValue = (string.Empty, null, 0);
-            SQLiteCommand? cmd = null;
+            SqliteCommand? cmd = null;
 
             try
             {

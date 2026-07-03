@@ -1,11 +1,10 @@
-﻿using CounterStrikeSharp.API.Modules.Utils;
+using CounterStrikeSharp.API.Modules.Utils;
 using CS2Retake.Allocators.Implementations.CommandAllocator.Interfaces;
 using CS2Retake.Utils;
 using Npgsql;
 using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
