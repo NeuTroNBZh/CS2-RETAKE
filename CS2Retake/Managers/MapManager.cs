@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API;
+using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Timers;
 using CounterStrikeSharp.API.Modules.Utils;
@@ -112,8 +112,7 @@ namespace CS2Retake.Managers
 
             if (spawn == null)
             {
-                MessageUtils.Log(LogLevel.Error,$"Spawn is null. Moving player to Spectator");
-                player.SwitchTeam(CsTeam.Spectator);
+                MessageUtils.Log(LogLevel.Error, $"No retake spawn could be resolved for player {player.PlayerName}. Keeping the default game spawn.");
                 return;
             }
 

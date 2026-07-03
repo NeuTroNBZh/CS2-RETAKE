@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API;
+using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
 using System;
@@ -11,12 +11,25 @@ namespace CS2Retake.Utils
 {
     public static class PlayerUtils
     {
+        public static bool IsPlayableHuman(CCSPlayerController? player)
+        {
+            return player != null
+                && player.IsValid
+                && !player.IsBot
+                && !player.IsHLTV
+                && player.UserId.HasValue
+                && player.PlayerPawn != null
+                && player.PlayerPawn.IsValid
+                && player.PlayerPawn.Value != null
+                && player.PlayerPawn.Value.IsValid;
+        }
+
         public static List<CCSPlayerController> GetPlayerControllersOfTeam(CsTeam team)
         {
             var playerList = Utilities.GetPlayers();
 
-            //Valid players
-            playerList = playerList.FindAll(x => x != null && x.IsValid && x.PlayerPawn != null && x.PlayerPawn.IsValid && x.PlayerPawn.Value != null && x.PlayerPawn.Value.IsValid);
+            //Valid human players only
+            playerList = playerList.FindAll(IsPlayableHuman);
 
             //Team specific players
             playerList = playerList.FindAll(x => x.TeamNum == (int)team);
@@ -27,7 +40,7 @@ namespace CS2Retake.Utils
         public static List<CCSPlayerController> GetCounterTerroristPlayers() => GetPlayerControllersOfTeam(CsTeam.CounterTerrorist);
         public static List<CCSPlayerController> GetTerroristPlayers() => GetPlayerControllersOfTeam(CsTeam.Terrorist);
 
-        public static List<CCSPlayerController> GetValidPlayerControllers() => Utilities.GetPlayers().Where(player => player.PlayerPawn != null && player.PlayerPawn.IsValid && player.PlayerPawn.Value != null && player.PlayerPawn.Value.IsValid).ToList();
+        public static List<CCSPlayerController> GetValidPlayerControllers() => Utilities.GetPlayers().Where(IsPlayableHuman).ToList();
 
         public static bool AreMoreThenPlayersConnected(int playerCount) => GetValidPlayerControllers().Count() >= playerCount;
 

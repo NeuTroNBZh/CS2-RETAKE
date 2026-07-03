@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API.Modules.Utils;
+using CounterStrikeSharp.API.Modules.Utils;
 using CS2Retake.Allocators.Implementations.CommandAllocator.Entities;
 using CSZoneNet.Plugin.CS2BaseAllocator.Configs.Base;
 using System;
@@ -24,11 +24,12 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Configs
 
             new WeaponEntity("Glock", "weapon_glock", CsTeam.Terrorist),
             new WeaponEntity("Tec-9", "weapon_tec9", CsTeam.Terrorist),
+            new WeaponEntity("R8 Revolver", "weapon_revolver"),
         };
 
         public PistolConfig()
         {
-            this.Version = 1;
+            this.Version = 2;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Modules.Utils;
 using CS2Retake.Utils;
@@ -45,13 +45,19 @@ namespace CS2Retake.Managers
         public void AssignRandomPlayerInBombZoneAsPlanter()
         {
 
+            if (MapManager.Instance.CurrentMap?.SpawnPoints.Any() != true)
+            {
+                MessageUtils.Log(LogLevel.Warning, "No retake spawns are configured for the current map. Use css_retakeaddspawn and css_retakewrite, or deploy a prebuilt spawns file.");
+                return;
+            }
+
             var random = new Random();
             var plantSpawn = MapManager.Instance.CurrentMap?.SpawnPoints.Where(spawn => spawn.SpawnUsedBy != null && spawn.IsInBombZone).OrderBy(x => random.Next()).FirstOrDefault();
 
 
             if(plantSpawn == null)
             {
-                MessageUtils.Log(LogLevel.Warning,$"No valid plant spawn found! This might be because no player is on terrorist team.");
+                MessageUtils.Log(LogLevel.Warning, "No valid plant spawn found. This usually means no terrorist bomb-zone spawn is configured for the selected site, or no terrorist was assigned to one.");
                 return;
             }
 
@@ -90,7 +96,7 @@ namespace CS2Retake.Managers
         {
             var bombsite = MapManager.Instance.BombSite;
 
-            foreach(var player in Utilities.GetPlayers().FindAll(x => x.TeamNum == (int)CsTeam.CounterTerrorist))
+            foreach(var player in PlayerUtils.GetCounterTerroristPlayers())
             {
                 player.ExecuteClientCommand($"play sounds/vo/agents/seal_epic/loc_{bombsite.ToString().ToLower()}_01");
             }

@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API.Modules.Utils;
+using CounterStrikeSharp.API.Modules.Utils;
 using CS2Retake.Allocators.Implementations.CommandAllocator.Entities;
 using CSZoneNet.Plugin.CS2BaseAllocator.Configs.Base;
 using System;
@@ -20,8 +20,12 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Configs
             new WeaponEntity("MP7", "weapon_mp7"),
 
             new WeaponEntity("MP-9", "weapon_mp9", CsTeam.CounterTerrorist),
+            new WeaponEntity("Famas", "weapon_famas", CsTeam.CounterTerrorist),
+            new WeaponEntity("AUG", "weapon_aug", CsTeam.CounterTerrorist),
 
             new WeaponEntity("Mac-10", "weapon_mac10", CsTeam.Terrorist),
+            new WeaponEntity("Galil", "weapon_galilar", CsTeam.Terrorist),
+            new WeaponEntity("SG-553", "weapon_sg556", CsTeam.Terrorist),
         };
 
         public List<WeaponEntity> AvailableSecondaries { get; set; } = new List<WeaponEntity>()
@@ -37,11 +41,12 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator.Configs
 
             new WeaponEntity("Glock", "weapon_glock", CsTeam.Terrorist),
             new WeaponEntity("Tec-9", "weapon_tec9", CsTeam.Terrorist),
+            new WeaponEntity("R8 Revolver", "weapon_revolver"),
         };
 
         public MidConfig()
         {
-            this.Version = 1;
+            this.Version = 2;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Core;
 using CS2Retake.Entities;
 using CS2Retake.Utils;
 using System;
@@ -18,7 +18,7 @@ namespace CS2Retake.Configs
 
         public List<RoundTypeSequenceEntity> RoundTypeSequence { get; set; } = new List<RoundTypeSequenceEntity>() 
         { 
-            new RoundTypeSequenceEntity(RoundTypeEnum.Pistol, 5),
+            new RoundTypeSequenceEntity(RoundTypeEnum.Pistol, 3),
             new RoundTypeSequenceEntity(RoundTypeEnum.Mid, 3),
             new RoundTypeSequenceEntity(RoundTypeEnum.FullBuy, -1),  
         };
@@ -29,7 +29,7 @@ namespace CS2Retake.Configs
 
         public float SecondsUntilBombPlantedCheck { get; set; } = 5.0f;
 
-        public bool SpotAnnouncerEnabled { get; set; } = true;
+        public bool SpotAnnouncerEnabled { get; set; } = false;
 
         public bool EnableQueue { get; set; } = true;
         public bool EnableScramble { get; set; } = true;
@@ -37,7 +37,7 @@ namespace CS2Retake.Configs
 
         public int ScrambleAfterSubsequentTerroristRoundWins { get; set; } = 5;
 
-        public int MaxPlayers { get; set; } = 10;
+        public int MaxPlayers { get; set; } = 9;
         public float TeamBalanceRatio { get; set; } = 0.499f;
 
         public bool EnableThankYouMessage { get; set; } = false;

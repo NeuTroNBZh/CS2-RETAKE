@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API.Modules.Utils;
+using CounterStrikeSharp.API.Modules.Utils;
 using CS2Retake.Utils;
 using System;
 using System.Collections.Generic;
@@ -38,11 +38,17 @@ namespace CS2Retake.Entities
                 this.LoadSpawns();
             }
 
+            if (!this.SpawnPoints.Any())
+            {
+                MessageUtils.Log(LogLevel.Error, $"No retake spawns are loaded for map '{this.MapName}'. Expected file: {this.GetPath()}");
+                return null;
+            }
+
             var spawnChoices = this.SpawnPoints.Where(x => x.Team == team && x.SpawnUsedBy == null && x.BombSite == bombSite).ToList();
 
             if(!spawnChoices.Any())
             {
-                MessageUtils.Log(LogLevel.Warning,$"No spawn choices found.");
+                MessageUtils.Log(LogLevel.Warning, $"No spawn choices found for map '{this.MapName}', team '{team}', site '{bombSite}'.");
                 return null;
             }
 
@@ -69,6 +75,7 @@ namespace CS2Retake.Entities
 
             if(!File.Exists(path)) 
             {
+                MessageUtils.Log(LogLevel.Error, $"Spawn file not found for map '{this.MapName}': {path}");
                 return;
             }
 
@@ -76,10 +83,13 @@ namespace CS2Retake.Entities
 
             if(string.IsNullOrEmpty(jsonSpawnPoints))
             {
+                MessageUtils.Log(LogLevel.Warning, $"Spawn file is empty for map '{this.MapName}': {path}");
                 return;
             }
 
             this.SpawnPoints = JsonSerializer.Deserialize<List<SpawnPointEntity>>(jsonSpawnPoints) ?? new List<SpawnPointEntity>();
+
+            MessageUtils.Log(LogLevel.Information, $"Loaded {this.SpawnPoints.Count} retake spawns for map '{this.MapName}' from {path}");
         }
 
         public void SaveSpawns() 

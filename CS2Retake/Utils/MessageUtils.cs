@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API;
+using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
 using CS2Retake.Configs;
@@ -17,9 +17,9 @@ namespace CS2Retake.Utils
         {
             $"Thank you for using {ChatColors.Gold}CS2Retake{ChatColors.White} :)", 
             $"If you notice any bugs please report them here:",
-            $"https://github.com/LordFetznschaedl/CS2Retake/issues",
-            $"If you want to support the development of this Retake Plugin",
-            $"https://www.buymeacoffee.com/lordfetznschaedl",
+            $"https://github.com/NeuTroNBZh/CS2-RETAKE/issues",
+            $"Project repository:",
+            $"https://github.com/NeuTroNBZh/CS2-RETAKE",
         };
 
         public static void ThankYouMessage()
