@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API;
+using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
@@ -13,6 +13,7 @@ using CS2Retake.Utils;
 using Microsoft.Extensions.Logging;
 using CSZoneNet.Plugin.Utils.Enums;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
+using System.Linq;
 
 namespace CS2Retake
 {
@@ -21,7 +22,7 @@ namespace CS2Retake
     {
         public override string ModuleName => "CS2Retake";
         public override string ModuleVersion => "3.0.0";
-        public override string ModuleAuthor => "LordFetznschaedl";
+        public override string ModuleAuthor => "NeuTroNBZh";
         public override string ModuleDescription => "Highly configurable and modular implementation Retake for CS2";
 
         private readonly List<string> _gunsCommandAlias = new List<string>(){"guns", "gans", "gun", "g", "gns", "gnus", "weapon", "waepon", "weapons", "waepons", "waffen", "menu", "allocator", "select"};
@@ -94,7 +95,7 @@ namespace CS2Retake
             this.RegisterEventHandler<EventPlayerDisconnect>(OnPlayerDisconnect);
 
             this.AddCommandListener("jointeam", OnCommandJoinTeam);
-            this.AddCommandListener("buy", OnCommandBuy);
+            this.AddCommandListener("buy", OnCommandBuy, HookMode.Pre);
 
             foreach(var alias in this._gunsCommandAlias)
             {
@@ -270,6 +271,11 @@ namespace CS2Retake
                 return HookResult.Handled;
             }
 
+            if (player.IsBot || player.IsHLTV)
+            {
+                return HookResult.Continue;
+            }
+
             MessageUtils.LogDebug($"CommandInfo: ArgString: {commandInfo.ArgString}, CommandString: {commandInfo.GetCommandString}");
 
             var oldTeam = (CsTeam)player.TeamNum;
@@ -300,7 +306,13 @@ namespace CS2Retake
 
         private HookResult OnCommandBuy(CCSPlayerController? player, CommandInfo commandInfo)
         {
-            return WeaponManager.Instance.OnBuyCommand(player, commandInfo);
+            if (player == null || !player.IsValid)
+            {
+                return HookResult.Handled;
+            }
+
+            MessageUtils.PrintToPlayerOrServer("Buy menu is disabled on this server. Use !guns.", player);
+            return HookResult.Handled;
         }
 
         public HookResult OnPlayerSpawn(EventPlayerSpawn @event, GameEventInfo info)
@@ -556,8 +568,17 @@ namespace CS2Retake
 
         public void OnMapStart(string mapName)
         {
-            this.Logger?.LogInformation($"Map changed to {mapName}");
-            MapManager.Instance.CurrentMap = new MapEntity(Server.MapName, this.ModuleDirectory);
+            var resolvedMapName = string.IsNullOrWhiteSpace(mapName) ? Server.MapName : mapName;
+
+            this.Logger?.LogInformation($"Map changed to {resolvedMapName}");
+
+            if (string.IsNullOrWhiteSpace(resolvedMapName))
+            {
+                this.Logger?.LogWarning("Map start fired before a valid map name was available. Deferring map entity initialization.");
+                return;
+            }
+
+            MapManager.Instance.CurrentMap = new MapEntity(resolvedMapName, this.ModuleDirectory);
             RetakeManager.Instance.ConfigureForRetake();
             GameRuleManager.Instance.GameRules = null;
             this._scrambleAfterWarmupDone = false;

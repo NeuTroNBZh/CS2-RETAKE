@@ -13,7 +13,10 @@
     <PackageReference Include="CSZoneNet.Plugin.CS2BaseAllocator" Version="1.0.13" />
     <PackageReference Include="CSZoneNet.Plugin.Utils" Version="1.0.1" />
     <PackageReference Include="Npgsql" Version="8.0.3" />
-    <PackageReference Include="System.Data.SQLite" Version="1.0.118" />
-    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.118" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.3" />
   </ItemGroup>
+
+  <Target Name="SyncPluginArtifacts" AfterTargets="Build" Condition="'$(OS)' == 'Windows_NT'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\BuildScripts\Sync-PluginArtifacts.ps1&quot; -ProjectDir &quot;$(MSBuildProjectDirectory)&quot; -TargetDir &quot;$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)&quot; -Version &quot;$(Version)&quot; -WorkspaceRoot &quot;$(MSBuildProjectDirectory)\..\..\..&quot;" />
+  </Target>
 </Project>
