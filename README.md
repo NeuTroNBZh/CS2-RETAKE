@@ -17,6 +17,32 @@
 
 ---
 
+## 🔁 Round Flow
+
+```mermaid
+flowchart LR
+    A[Round Start] --> B{Round Type}
+    B -->|Pistol| C[!guns menu:\nsecondaries only]
+    B -->|Mid| D[!guns menu:\nmid-tier weapons]
+    B -->|Full Buy| E[!guns menu:\nfull arsenal + AWP chance]
+    C --> F[Helmets stripped]
+    D --> G[CT kit distribution]
+    E --> G
+    F --> G
+    G --> H[Bomb auto-planted]
+    H --> I{InstaDefuse\nconditions met?}
+    I -->|Yes, no threats| J[Instant defuse]
+    I -->|No| K[Normal defuse timer]
+    J --> L[Round End]
+    K --> L
+    L --> M{Scramble/switch\nthreshold reached?}
+    M -->|Yes| N[Teams scrambled or swapped]
+    M -->|No| A
+    N --> A
+```
+
+---
+
 ## ✨ Features
 
 ### 🔫 Weapon System
