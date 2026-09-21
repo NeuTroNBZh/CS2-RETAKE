@@ -11,6 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CS2Retake.Utils;
+using CS2Retake.Rules;
 using Microsoft.Extensions.Logging;
 using CS2Retake.Allocators.Implementations.CommandAllocator.Menus;
 using CS2Retake.Allocators.Implementations.CommandAllocator.Manager;
@@ -162,7 +163,7 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
 
             var activePlayers = PlayerUtils.GetCounterTerroristPlayers().Count + PlayerUtils.GetTerroristPlayers().Count;
 
-            if (activePlayers <= 4)
+            if (!AwpRules.IsLobbyEligible(activePlayers))
             {
                 return;
             }
@@ -177,21 +178,12 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
                 .Where(player => CacheManager.Instance.GetFullBuyWeapons(player).awpChance.GetValueOrDefault() > 0)
                 .ToList();
 
-            if (!volunteers.Any())
-            {
-                return;
-            }
+            var selectedVolunteer = AwpRules.PickRecipient(
+                volunteers,
+                player => CacheManager.Instance.GetFullBuyWeapons(player).awpChance.GetValueOrDefault(),
+                Random.Shared);
 
-            var selectedVolunteer = this.PickRandomPlayers(volunteers, 1).FirstOrDefault();
-
-            if (selectedVolunteer == null)
-            {
-                return;
-            }
-
-            var selectedChance = CacheManager.Instance.GetFullBuyWeapons(selectedVolunteer).awpChance.GetValueOrDefault();
-
-            if (this.RollChance(selectedChance))
+            if (selectedVolunteer != null)
             {
                 this._awpRecipients.Add(selectedVolunteer.SteamID);
             }
@@ -283,17 +275,7 @@ namespace CS2Retake.Allocators.Implementations.CommandAllocator
 
         private bool RollChance(double chancePercent)
         {
-            if (chancePercent <= 0.0d)
-            {
-                return false;
-            }
-
-            if (chancePercent >= 100.0d)
-            {
-                return true;
-            }
-
-            return Random.Shared.NextDouble() * 100.0d <= chancePercent;
+            return Chance.Roll(chancePercent, Random.Shared);
         }
 
         private List<CCSPlayerController> PickRandomPlayers(List<CCSPlayerController> players, int quota)
