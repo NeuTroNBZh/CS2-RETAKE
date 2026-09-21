@@ -17,7 +17,7 @@ using System.Linq;
 
 namespace CS2Retake
 {
-    [MinimumApiVersion(370)]
+    [MinimumApiVersion(374)]
     public class CS2Retake : BasePlugin, IPluginConfig<CS2RetakeConfig>
     {
         public override string ModuleName => "CS2Retake";
