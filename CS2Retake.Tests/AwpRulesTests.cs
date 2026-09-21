@@ -57,6 +57,7 @@ public class AwpRulesTests
 
         var result = AwpRules.PickRecipient(volunteers, v => v.AwpChance, new Random(3));
 
+        Assert.NotNull(result);
         Assert.Contains(result, volunteers);
     }
 
@@ -68,6 +69,7 @@ public class AwpRulesTests
 
         var picked = Enumerable.Range(0, 200)
             .Select(_ => AwpRules.PickRecipient(volunteers, v => v.AwpChance, random))
+            .OfType<Volunteer>()
             .ToHashSet();
 
         Assert.Equal(volunteers.ToHashSet(), picked);

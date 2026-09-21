@@ -326,7 +326,7 @@ dotnet build CS2Retake/CS2Retake.csproj -c Release
 
 Output artifacts are placed in `CS2Retake/bin/Release/net10.0/`.
 
-Local builds outside the release workspace: `dotnet build -c Release -p:SkipArtifactSync=true`. Tests: `dotnet test -p:SkipArtifactSync=true`.
+Local builds outside the release workspace: `dotnet build -c Release -p:SkipArtifactSync=true`. Tests: `dotnet test -p:SkipArtifactSync=true`. The default build (without that flag) runs `BuildScripts/Sync-PluginArtifacts.ps1`, which reads config templates from `release/v<Version>/` (git-ignored) and fails with "Missing template configs" if that folder is absent — so after a version bump, copy the previous `release/v<previous>/` folder to `release/v<new>/` (e.g. `release/v3.1.0` → `release/v3.1.1`) before the first default build.
 
 The build script (`BuildScripts/Sync-PluginArtifacts.ps1`) automatically assembles the release package under `plugin/` on Windows.
 
