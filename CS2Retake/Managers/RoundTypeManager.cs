@@ -2,6 +2,7 @@
 using CS2Retake.Configs;
 using CS2Retake.Managers.Base;
 using CS2Retake.Managers.Interfaces;
+using CS2Retake.Rules;
 using CS2Retake.Utils;
 using System;
 using System.Collections.Generic;
@@ -17,7 +18,7 @@ namespace CS2Retake.Managers
         private static RoundTypeManager? _instance = null;
 
         public RoundTypeEnum RoundType { get; private set; } = RoundTypeEnum.Undefined;
-        private List<RoundTypeEnum> _roundTypeList = new List<RoundTypeEnum>();
+        private IReadOnlyList<RoundTypeEnum> _roundTypeList = Array.Empty<RoundTypeEnum>();
 
         public static RoundTypeManager Instance
         {
@@ -54,7 +55,6 @@ namespace CS2Retake.Managers
 
         public void ResetSequenceRoundType()
         {
-            this._roundTypeList.Clear();
             this.CreateRoundTypeList();
         }
 
@@ -73,7 +73,6 @@ namespace CS2Retake.Managers
             if (!this._roundTypeList.Any())
             {
                 this.CreateRoundTypeList();
-                
             }
 
             var totalRoundsPlayed = GameRuleManager.Instance.TotalRoundsPlayed;
@@ -81,12 +80,12 @@ namespace CS2Retake.Managers
 
             MessageUtils.LogDebug($"TotalRoundsPlayed: {totalRoundsPlayed} - MaxRounds: {maxRounds}");
 
-            if(totalRoundsPlayed > maxRounds || totalRoundsPlayed >= this._roundTypeList.Count)
-            {
-                return;
-            }
+            var roundType = RoundTypeSequence.TryGetAt(this._roundTypeList, totalRoundsPlayed, maxRounds);
 
-            this.RoundType = this._roundTypeList.ElementAt(totalRoundsPlayed);
+            if (roundType.HasValue)
+            {
+                this.RoundType = roundType.Value;
+            }
         }
 
         private void CreateRoundTypeList()
@@ -95,22 +94,7 @@ namespace CS2Retake.Managers
 
             MessageUtils.LogDebug($"MaxRounds: {maxRounds}");
 
-            var roundTypeSequence = RuntimeConfig.RoundTypeSequence;
-
-            foreach (var roundType in roundTypeSequence)
-            {
-                var roundsToAddToQueue = roundType.AmountOfRounds;
-
-                if (roundType.AmountOfRounds < 0)
-                {
-                    roundsToAddToQueue = maxRounds - this._roundTypeList.Count + 1;
-                }
-
-                for (int i = 0; i < roundsToAddToQueue; i++)
-                {
-                    this._roundTypeList.Add(roundType.RoundType);
-                }
-            }
+            this._roundTypeList = RoundTypeSequence.Build(RuntimeConfig.RoundTypeSequence, maxRounds);
         }
 
         public override void ResetForNextRound(bool completeReset = true)
@@ -127,7 +111,7 @@ namespace CS2Retake.Managers
             if (completeReset)
             {
                 this.RoundType = RuntimeConfig.RoundTypeSpecific;
-                this._roundTypeList.Clear();
+                this._roundTypeList = Array.Empty<RoundTypeEnum>();
             }
         }
     }
