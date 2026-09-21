@@ -6,8 +6,8 @@
 
 [![Release](https://img.shields.io/github/v/release/NeuTroNBZh/CS2-RETAKE?style=flat-square&label=Release&color=brightgreen)](https://github.com/NeuTroNBZh/CS2-RETAKE/releases/latest)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-8.0-purple?style=flat-square)](https://dotnet.microsoft.com/)
-[![CounterStrikeSharp](https://img.shields.io/badge/CounterStrikeSharp-1.0.228-orange?style=flat-square)](https://github.com/roflmuffin/CounterStrikeSharp)
+[![.NET](https://img.shields.io/badge/.NET-10.0-purple?style=flat-square)](https://dotnet.microsoft.com/)
+[![CounterStrikeSharp](https://img.shields.io/badge/CounterStrikeSharp-1.0.374-orange?style=flat-square)](https://github.com/roflmuffin/CounterStrikeSharp)
 [![CS2](https://img.shields.io/badge/Game-CS2-yellow?style=flat-square)](https://www.counter-strike.net/)
 [![SpawnEditor](https://img.shields.io/badge/Companion-SpawnEditor-blue?style=flat-square)](https://github.com/NeuTroNBZh/CS2-SpawnEditor)
 
@@ -100,9 +100,11 @@ Fully integrated, no separate DLL required. Based on [B3none/cs2-instadefuse](ht
 
 | Dependency | Version | Link |
 |-----------|---------|------|
-| **CounterStrikeSharp** | ≥ 1.0.228 | [github.com/roflmuffin/CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp/releases) |
-| **Metamod:Source** | latest dev | [sourcemm.net](https://www.sourcemm.net/downloads.php/?branch=master) |
-| **.NET Runtime** | 8.0 | Bundled with CounterStrikeSharp |
+| **CounterStrikeSharp** | ≥ 1.0.374 | [github.com/roflmuffin/CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp/releases) |
+| **Metamod:Source** | 2.0.0-dev+1411 (see note below) | [sourcemm.net](https://www.sourcemm.net/downloads.php/?branch=master) |
+| **.NET Runtime** | 10.0 | Bundled with CounterStrikeSharp |
+
+> **Metamod compatibility (September 2026):** Metamod:Source dev builds 1461 and newer moved to SourceHook API 18, which CounterStrikeSharp 1.0.374 cannot load yet ("Plugin uses old SourceHook … (17 < 18)", [CounterStrikeSharp#1415](https://github.com/roflmuffin/CounterStrikeSharp/issues/1415)). Use **Metamod:Source 2.0.0-dev+1411** until CounterStrikeSharp ships a fix.
 
 ---
 
@@ -293,7 +295,7 @@ To switch to **PostgreSQL**, set `DatabaseType` to `PostgreSql` and fill in the 
 ## 🔧 Troubleshooting
 
 **Plugin does not load**
-→ Verify CounterStrikeSharp ≥ 1.0.228 is installed and the `CS2Retake.dll` is in the correct `plugins/CS2Retake/` directory.
+→ Verify CounterStrikeSharp ≥ 1.0.374 is installed and the `CS2Retake.dll` is in the correct `plugins/CS2Retake/` directory.
 
 **Players spawn in wrong positions**
 → Check that the spawn JSON file for the current map exists in `spawns/`. If missing, players will use the game's default spawns.
@@ -322,7 +324,9 @@ cd CS2-RETAKE
 dotnet build CS2Retake/CS2Retake.csproj -c Release
 ```
 
-Output artifacts are placed in `CS2Retake/bin/Release/net8.0/`.
+Output artifacts are placed in `CS2Retake/bin/Release/net10.0/`.
+
+Local builds outside the release workspace: `dotnet build -c Release -p:SkipArtifactSync=true`. Tests: `dotnet test -p:SkipArtifactSync=true`.
 
 The build script (`BuildScripts/Sync-PluginArtifacts.ps1`) automatically assembles the release package under `plugin/` on Windows.
 
