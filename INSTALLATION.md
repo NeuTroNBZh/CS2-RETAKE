@@ -6,6 +6,8 @@ This guide explains how to install and run CS2-RETAKE V3 on a Counter-Strike 2 d
 
 - A working CS2 dedicated server.
 - CounterStrikeSharp installed and loading plugins correctly.
+- CounterStrikeSharp **1.0.374** or newer (.NET 10 runtime line).
+- Metamod:Source **2.0.0-dev+1411** — dev builds 1461+ currently break CounterStrikeSharp 1.0.374 ([issue #1415](https://github.com/roflmuffin/CounterStrikeSharp/issues/1415)).
 - Access to your server files and restart rights.
 
 ## 2. Download Release Assets

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.1.1] — 2026-09-21
+
+### ⚠️ Requirements
+- **Requires CounterStrikeSharp v1.0.374** (`MinimumApiVersion(374)`), needed for the upcoming Custom HUD and Ray/Hull trace APIs.
+- **Metamod:Source 2.0.0-dev+1411** recommended: dev builds 1461+ currently prevent CounterStrikeSharp 1.0.374 from loading (CounterStrikeSharp#1415).
+
+### Changed
+- AWP eligibility, AWP recipient pick, chance rolls and the round-type sequence moved to pure, unit-tested classes (`CS2Retake/Rules`). No gameplay change.
+- `SyncPluginArtifacts` build step can be skipped with `-p:SkipArtifactSync=true`.
+
+### Added
+- `CS2Retake.Tests` xUnit project.
+
+### Docs
+- README / INSTALLATION updated for CounterStrikeSharp 1.0.374, .NET 10 and the Metamod compatibility note.
+
+---
+
 ## [3.1.0] — 2026-07-03
 
 ### ⚠️ Breaking / Requirements

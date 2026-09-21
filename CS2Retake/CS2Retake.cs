@@ -17,11 +17,11 @@ using System.Linq;
 
 namespace CS2Retake
 {
-    [MinimumApiVersion(370)]
+    [MinimumApiVersion(374)]
     public class CS2Retake : BasePlugin, IPluginConfig<CS2RetakeConfig>
     {
         public override string ModuleName => "CS2Retake";
-        public override string ModuleVersion => "3.1.0";
+        public override string ModuleVersion => "3.1.1";
         public override string ModuleAuthor => "NeuTroNBZh";
         public override string ModuleDescription => "Highly configurable and modular implementation Retake for CS2";
 
