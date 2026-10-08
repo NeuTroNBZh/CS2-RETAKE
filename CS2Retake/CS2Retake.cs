@@ -9,6 +9,7 @@ using CounterStrikeSharp.API.Modules.Utils;
 using CS2Retake.Configs;
 using CS2Retake.Entities;
 using CS2Retake.Managers;
+using CS2Retake.Rules;
 using CS2Retake.Utils;
 using Microsoft.Extensions.Logging;
 using CSZoneNet.Plugin.Utils.Enums;
@@ -21,7 +22,7 @@ namespace CS2Retake
     public class CS2Retake : BasePlugin, IPluginConfig<CS2RetakeConfig>
     {
         public override string ModuleName => "CS2Retake";
-        public override string ModuleVersion => "3.1.1";
+        public override string ModuleVersion => "3.2.0";
         public override string ModuleAuthor => "NeuTroNBZh";
         public override string ModuleDescription => "Highly configurable and modular implementation Retake for CS2";
 
@@ -46,6 +47,7 @@ namespace CS2Retake
         {
             this.Logger?.LogInformation(this.PluginInfo());
             this.Logger?.LogInformation(this.ModuleDescription);
+            this.Logger?.LogWarning(DeprecationNotice.Message);
 
             MessageUtils.Logger = this.Logger;
 
@@ -107,6 +109,7 @@ namespace CS2Retake
         public void OnCommandInfo(CCSPlayerController? player, CommandInfo command)
         {
             command.ReplyToCommand($"{ MessageUtils.PluginPrefix} {PluginInfo()}");
+            command.ReplyToCommand($"{ MessageUtils.PluginPrefix} {DeprecationNotice.Message}");
         }
 
         [ConsoleCommand("css_retakespawn", "This command teleports the player to a spawn with the given index in the args")]

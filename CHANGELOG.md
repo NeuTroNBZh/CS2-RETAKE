@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.2.0] — 2026-10-08
+
+### Deprecated
+- **CS2-RETAKE (V3) is replaced by [CS2-RetakeV4](https://github.com/NeuTroNBZh/CS2-RetakeV4)** and will be archived. This is the final feature release.
+- The plugin now prints a deprecation warning in the server console at startup and in `css_retakeinfo`.
+- Migration guide: [MIGRATION-V3.md](https://github.com/NeuTroNBZh/CS2-RetakeV4/blob/main/docs/MIGRATION-V3.md) (V3 spawns are read as they are; weapon preferences are imported with `css_retake_import_v3`).
+
+### Added
+- `DeprecationNotice` rule class with unit tests. No gameplay change.
+
+---
+
 ## [3.1.1] — 2026-09-21
 
 ### ⚠️ Requirements
