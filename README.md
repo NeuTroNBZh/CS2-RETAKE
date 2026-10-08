@@ -1,3 +1,8 @@
+> [!WARNING]
+> **This plugin is deprecated and replaced by [CS2-RetakeV4](https://github.com/NeuTroNBZh/CS2-RetakeV4).**
+> RetakeV4 is a full rewrite of V3: modular, JSON-configured, with the spawn editor and map cleanup built in. V3 spawns are read as they are and players' weapon preferences can be imported (see the [migration guide](https://github.com/NeuTroNBZh/CS2-RetakeV4/blob/main/docs/MIGRATION-V3.md)).
+> V3 no longer receives new features and will be archived. Do not run it next to RetakeV4.
+
 <div align="center">
 
 # CS2 Retake V3
